@@ -270,13 +270,6 @@ class DirectoryInfo(FSNode):
                 break
 
         y = DIPY
-        for f in self.files.values():
-            if y <= 0:
-                yield True
-                y = DIPY
-            else:
-                y -= 1
-            f.requestAttribute("modify", coDisp)
         for d in dirs.values():
             if y <= 0:
                 yield True
