@@ -155,9 +155,9 @@ class CoroutineContext(object):
 
 FSEvent = Enum("Events", """
     DIRECTORY_FOUND
-    FILE_TS_READED
+    FILE_MODIFY_GOT
     DIRECTORY_NODE_SKIPPED
-    FILE_TS_READ_ERROR
+    FILE_MODIFY_ERROR
     FILE_FOUND
 """)
 
@@ -195,13 +195,13 @@ class FileInfo(FSNode):
             yield False
 
         if p.returncode != 0:
-            coCtx.notify(FSEvent.FILE_TS_READ_ERROR, self,
+            coCtx.notify(FSEvent.FILE_MODIFY_ERROR, self,
                 returncode = p.returncode,
                 popen = p
             )
         else:
             self.modify = p.communicate()[0].decode("utf-8").strip()
-            coCtx.notify(FSEvent.FILE_TS_READED, self)
+            coCtx.notify(FSEvent.FILE_MODIFY_GOT, self)
 
 # Directory Items Per Yield
 DIPY = 100
@@ -287,8 +287,8 @@ class FileTree(Treeview):
 
         coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
         coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
-        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
+        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
+        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_MODIFY_ERROR)
         coCtx.listen(self.onDirectoryNodeSkipped,
             FSEvent.DIRECTORY_NODE_SKIPPED
         )
@@ -369,8 +369,8 @@ class RootInfo(Frame):
 
         coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
         coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
-        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
+        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
+        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_MODIFY_ERROR)
         coCtx.listen(self.onDirectoryNodeSkipped,
             FSEvent.DIRECTORY_NODE_SKIPPED
         )
