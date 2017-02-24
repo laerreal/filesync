@@ -230,6 +230,7 @@ class DirectoryInfo(FSNode):
         files = {}
         dirs = {}
         nodes = {}
+        skipped = 0
 
         y = DIPY
         for np in nps:
@@ -252,12 +253,14 @@ class DirectoryInfo(FSNode):
                 self.fs.eCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, self,
                     path = np
                 )
+                skipped += 1
                 continue
 
             n._ep = ep
             nodes[np] = n
 
         self.files, self.dirs, self.nodes = files, dirs, nodes
+        self.skipped = skipped
 
     def coRecursiveReading(self, coDisp):
         while True:
