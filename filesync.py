@@ -453,10 +453,28 @@ class MainWindow(Tk):
             ri = RootInfo(self, rootDir, coDisp)
             nbRoots.add(ri, text = rden)
 
+        self.rowconfigure(1, weight = 0)
+        self.statusBar = l = Label(self)
+        l.grid(row = 1, column = 0,
+            columns = 1, # all
+            sticky = "SW"
+        )
+
     def iterateCoroutines(self):
+        coDisp = self.coDisp
+
         i = CIPMLI
-        while i > 0 and self.coDisp.iterate():
+        while i > 0 and coDisp.iterate():
             i -= 1
+
+        l = self.statusBar
+        l.config(text = "Tasks: %u + %u(W) = %u | %u + %u(LW)" % (
+            len(coDisp.ready),
+            len(coDisp.waiting),
+            coDisp.gotten,
+            len(coDisp.queue),
+            len(coDisp.longWaiting)
+        ))
 
     def mainloop(self):
         try:
