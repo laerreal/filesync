@@ -393,7 +393,7 @@ class MainWindow(Tk):
     def iterateCoroutines(self):
         i = CIPMLI
         while i > 0 and self.coDisp.iterate():
-             i -= 1
+            i -= 1
 
     def mainloop(self):
         try:
