@@ -41,6 +41,80 @@ from argparse import \
     ArgumentParser
 
 # Actual program below
+# ====================
+
+# Coroutine API
+# -------------
+
+class CoPipe(object):
+    def __init__(self):
+        self.queue = []
+
+    def append(self, co):
+        self.queue.append(co)
+
+    def coRun(self):
+        while True:
+            try:
+                current = self.queue.pop(0)
+            except IndexError:
+                break # StopIteration
+            else:
+                while True:
+                    try:
+                        res = next(current)
+                    except StopIteration:
+                        break
+                    else:
+                        yield res
+
+CO_LIMIT = 10
+class CoDisp(object):
+    def __init__(self):
+        self.gotten = 0
+        self.queue = []
+        self.ready = []
+        self.waiting = []
+
+    def enqueue(self, co):
+        self.queue.append(co)
+
+    def iterate(self):
+        r = self.ready
+        q = self.queue
+        w = self.waiting
+        g = self.gotten
+
+        try:
+            co = r.pop(0)
+        except IndexError:
+            if g < CO_LIMIT:
+                try:
+                    co = q.pop(0)
+                except IndexError:
+                    try:
+                        co = w.pop(0)
+                    except IndexError:
+                        return False
+                else:
+                    g += 1
+                    self.gotten = g
+            else:
+                co = w.pop(0)
+
+        try:
+            ret = next(co)
+        except StopIteration:
+            g -= 1
+            self.gotten = g
+            return bool(r or q)
+
+        if ret:
+            r.append(co)
+            return True
+
+        w.append(co)
+        return bool(r or q)
 
 class CoroutineContext(object):
     def __init__(self):
@@ -64,6 +138,9 @@ class CoroutineContext(object):
                 allLs[e] = ls = set()
 
             ls.add(cb)
+
+# File system model
+# -----------------
 
 FSEvent = Enum("Events", """
     DIRECTORY_FOUND
@@ -178,75 +255,8 @@ class DirectoryInfo(FSNode):
         dirPipe.append(self.coRecursiveReading(coDisp, coCtx))
         coDisp.enqueue(dirPipe.coRun())
 
-class CoPipe(object):
-    def __init__(self):
-        self.queue = []
-
-    def append(self, co):
-        self.queue.append(co)
-
-    def coRun(self):
-        while True:
-            try:
-                current = self.queue.pop(0)
-            except IndexError:
-                break # StopIteration
-            else:
-                while True:
-                    try:
-                        res = next(current)
-                    except StopIteration:
-                        break
-                    else:
-                        yield res
-
-CO_LIMIT = 10
-class CoDisp(object):
-    def __init__(self):
-        self.gotten = 0
-        self.queue = []
-        self.ready = []
-        self.waiting = []
-
-    def enqueue(self, co):
-        self.queue.append(co)
-
-    def iterate(self):
-        r = self.ready
-        q = self.queue
-        w = self.waiting
-        g = self.gotten
-
-        try:
-            co = r.pop(0)
-        except IndexError:
-            if g < CO_LIMIT:
-                try:
-                    co = q.pop(0)
-                except IndexError:
-                    try:
-                        co = w.pop(0)
-                    except IndexError:
-                        return False
-                else:
-                    g += 1
-                    self.gotten = g
-            else:
-                co = w.pop(0)
-
-        try:
-            ret = next(co)
-        except StopIteration:
-            g -= 1
-            self.gotten = g
-            return bool(r or q)
-
-        if ret:
-            r.append(co)
-            return True
-
-        w.append(co)
-        return bool(r or q)
+# Widgets
+# -------
 
 def iidGenerator():
     c = count(0)
@@ -427,6 +437,9 @@ class MainWindow(Tk):
                 self.iterateCoroutines()
         except TclError:
             pass
+
+# Main program
+# ------------
 
 if __name__ == "__main__":
     ap = ArgumentParser(description = "Re@l file syncronization tool.")
