@@ -225,7 +225,7 @@ class FileInfo(FSNode):
 DIPY = 100
 
 class DirectoryInfo(FSNode):
-    def coRead(self, coCtx):
+    def coGetNodes(self, coCtx):
         # node pathes
         nps = listdir(self.ep)
 
@@ -280,7 +280,7 @@ class DirectoryInfo(FSNode):
 
     def enqueueRecursiveReading(self, coDisp, coCtx):
         dirPipe = CoPipe()
-        dirPipe.append(self.coRead(coCtx))
+        dirPipe.append(self.coGetNodes(coCtx))
         dirPipe.append(self.coRecursiveReading(coDisp, coCtx))
         coDisp.enqueue(dirPipe.coRun())
 
