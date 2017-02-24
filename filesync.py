@@ -46,6 +46,11 @@ from argparse import \
 # Coroutine API
 # -------------
 
+class Yield(Enum):
+    WAIT = False
+    READY = True
+    LONG_WAIT = 2
+
 class CoPipe(object):
     def __init__(self):
         self.queue = []
@@ -109,9 +114,15 @@ class CoDisp(object):
             self.gotten = g
             return bool(r or q)
 
-        if ret:
+        if ret == True:
             r.append(co)
             return True
+
+        if ret == Yield.LONG_WAIT:
+            g -= 1
+            self.gotten = g
+            q.append(co)
+            return bool(r or q) # This is not quite correct
 
         w.append(co)
         return bool(r or q)
