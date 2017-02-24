@@ -313,6 +313,7 @@ class FileTree(Treeview):
         eCtx.listen(self.onDirectoryNodeSkipped,
             FSEvent.DIRECTORY_NODE_SKIPPED
         )
+        eCtx.listen(self.onDirectoryScanned, FSEvent.DIRECTORY_SCANNED)
 
         # File system node to iid
         self.fsn2iid = {
@@ -366,6 +367,13 @@ class FileTree(Treeview):
             values = ("[...]"),
             open = _open
         )
+
+    def onDirectoryScanned(self, event, di):
+        skipped = di.skipped
+        text = "F: %u D: %u%s" % (
+            len(di.files), len(di.dirs), (" ?: %u" % skipped if skipped else "")
+        )
+        self.item(self.fsn2iid[di], values = [text])
 
 class RootInfo(Frame):
     def __init__(self, parent, rootDir, coDisp):
