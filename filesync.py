@@ -161,6 +161,11 @@ FSEvent = Enum("Events", """
     FILE_FOUND
 """)
 
+class FS(object):
+    def __init__(self, root):
+        self.root = root
+        self.coCtx = CoroutineContext()
+
 class FileTSGettingError(Exception):
     pass
 
