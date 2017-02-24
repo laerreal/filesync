@@ -174,7 +174,7 @@ class FSNode(object):
             return ep
 
 class FileInfo(FSNode):
-    def coGetFileTS(self, coCtx):
+    def coGetModify(self, coCtx):
         p = Popen(["stat", "-c", "%y", self.ep],
             stdout = PIPE,
             stderr = PIPE
@@ -240,7 +240,7 @@ class DirectoryInfo(FSNode):
                 y = DIPY
             else:
                 y -= 1
-            coDisp.enqueue(f.coGetFileTS(coCtx))
+            coDisp.enqueue(f.coGetModify(coCtx))
         for d in self.dirs.values():
             if y <= 0:
                 yield True
