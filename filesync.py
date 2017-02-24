@@ -42,25 +42,28 @@ from argparse import \
 
 # Actual program below
 
-listeners = {}
+class CoroutineContext(object):
+    def __init__(self):
+        self.listeners = {}
 
-def notify(event, *args, **kw):
-    try:
-        ls = listeners[event]
-    except KeyError:
-        return
-
-    for l in ls:
-        l(event, *args, **kw)
-
-def listen(cb, *events):
-    for e in events:
+    def notify(self, event, *args, **kw):
         try:
-            ls = listeners[e]
+            ls = self.listeners[event]
         except KeyError:
-            listeners[e] = ls = set()
+            return
 
-        ls.add(cb)
+        for l in ls:
+            l(event, *args, **kw)
+
+    def listen(self, cb, *events):
+        allLs = self.listeners
+        for e in events:
+            try:
+                ls = allLs[e]
+            except KeyError:
+                allLs[e] = ls = set()
+
+            ls.add(cb)
 
 FSEvent = Enum("Events", """
     DIRECTORY_FOUND
@@ -94,7 +97,7 @@ class FSNode(object):
             return ep
 
 class FileInfo(FSNode):
-    def coGetFileTS(self):
+    def coGetFileTS(self, coCtx):
         p = Popen(["stat", "-c", "%y", self.ep],
             stdout = PIPE,
             stderr = PIPE
@@ -104,19 +107,19 @@ class FileInfo(FSNode):
             yield False
 
         if p.returncode != 0:
-            notify(FSEvent.FILE_TS_READ_ERROR, self,
+            coCtx.notify(FSEvent.FILE_TS_READ_ERROR, self,
                 returncode = p.returncode,
                 popen = p
             )
         else:
             self.modify = p.communicate()[0].decode("utf-8").strip()
-            notify(FSEvent.FILE_TS_READED, self)
+            coCtx.notify(FSEvent.FILE_TS_READED, self)
 
 # Directory Items Per Yield
 DIPY = 100
 
 class DirectoryInfo(FSNode):
-    def coRead(self):
+    def coRead(self, coCtx):
         # node pathes
         nps = listdir(self.ep)
 
@@ -138,13 +141,13 @@ class DirectoryInfo(FSNode):
             if isdir(ep):
                 n = DirectoryInfo(np, directory = self)
                 dirs[np] = n
-                notify(FSEvent.DIRECTORY_FOUND, n)
+                coCtx.notify(FSEvent.DIRECTORY_FOUND, n)
             elif isfile(ep):
                 n = FileInfo(np, directory = self)
                 files[np] = n
-                notify(FSEvent.FILE_FOUND, n)
+                coCtx.notify(FSEvent.FILE_FOUND, n)
             else:
-                notify(FSEvent.DIRECTORY_NODE_SKIPPED, self, path = np)
+                coCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, self, path = np)
                 continue
 
             n._ep = ep
@@ -152,7 +155,7 @@ class DirectoryInfo(FSNode):
 
         self.files, self.dirs, self.nodes = files, dirs, nodes
 
-    def coRecursiveReading(self, coDisp):
+    def coRecursiveReading(self, coDisp, coCtx):
         y = DIPY
         for f in self.files.values():
             if y <= 0:
@@ -160,19 +163,19 @@ class DirectoryInfo(FSNode):
                 y = DIPY
             else:
                 y -= 1
-            coDisp.enqueue(f.coGetFileTS())
+            coDisp.enqueue(f.coGetFileTS(coCtx))
         for d in self.dirs.values():
             if y <= 0:
                 yield True
                 y = DIPY
             else:
                 y -= 4 # different price
-                d.enqueueRecursiveReading(coDisp)
+                d.enqueueRecursiveReading(coDisp, coCtx)
 
-    def enqueueRecursiveReading(self, coDisp):
+    def enqueueRecursiveReading(self, coDisp, coCtx):
         dirPipe = CoPipe()
-        dirPipe.append(self.coRead())
-        dirPipe.append(self.coRecursiveReading(coDisp))
+        dirPipe.append(self.coRead(coCtx))
+        dirPipe.append(self.coRecursiveReading(coDisp, coCtx))
         coDisp.enqueue(dirPipe.coRun())
 
 class CoPipe(object):
@@ -251,7 +254,7 @@ def iidGenerator():
         yield str(next(c))
 
 class FileTree(Treeview):
-    def __init__(self, parent, rootDir, *args, **kw):
+    def __init__(self, parent, rootDir, coCtx, *args, **kw):
         kw["columns"] = ("info")
         Treeview.__init__(self, parent, *args, **kw)
 
@@ -259,13 +262,15 @@ class FileTree(Treeview):
         self.heading("#0", text = "Name")
         self.heading("info", text = "Information")
 
-        listen(self.onFileFound, FSEvent.FILE_FOUND)
-        listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-        listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
-        listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
-        listen(self.onDirectoryNodeSkipped, FSEvent.DIRECTORY_NODE_SKIPPED)
         self.iidGen = iidGenerator()
 
+        coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
+        coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
+        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
+        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
+        coCtx.listen(self.onDirectoryNodeSkipped,
+            FSEvent.DIRECTORY_NODE_SKIPPED
+        )
 
         # File system node to iid
         self.fsn2iid = {
@@ -325,15 +330,16 @@ class MainWindow(Tk):
         Tk.__init__(self)
 
         self.coDisp = CoDisp()
+        coCtx = CoroutineContext()
 
         self.rootDir = rootDir = DirectoryInfo(effectiveRootDirectoryName)
-        rootDir.enqueueRecursiveReading(self.coDisp)
+        rootDir.enqueueRecursiveReading(self.coDisp, coCtx)
 
         self.grid()
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        FileTree(self, rootDir).grid(row = 0, column = 0, sticky="NESW")
+        FileTree(self, rootDir, coCtx).grid(row = 0, column = 0, sticky="NESW")
 
         self.rowconfigure(1, weight=0)
         self.statusBar = l = Label(self)
@@ -350,11 +356,13 @@ class MainWindow(Tk):
         self.totalFiles = 0
         self.totalReadErrors = 0
 
-        listen(self.onFileFound, FSEvent.FILE_FOUND)
-        listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-        listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
-        listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
-        listen(self.onDirectoryNodeSkipped, FSEvent.DIRECTORY_NODE_SKIPPED)
+        coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
+        coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
+        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
+        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
+        coCtx.listen(self.onDirectoryNodeSkipped,
+            FSEvent.DIRECTORY_NODE_SKIPPED
+        )
 
     def onFileFound(self, *a, **kw):
         self.totalFiles += 1
