@@ -200,10 +200,11 @@ class CoPipe(object):
 
 CO_LIMIT = 10
 class CoDisp(object):
-    gotten = 0
-    queue = []
-    ready = []
-    waiting = []
+    def __init__(self):
+        self.gotten = 0
+        self.queue = []
+        self.ready = []
+        self.waiting = []
 
     def enqueue(self, co):
         self.queue.append(co)
