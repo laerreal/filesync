@@ -105,7 +105,7 @@ class CoDisp(object):
         w.append(co)
         return bool(r or q)
 
-class CoroutineContext(object):
+class EventContext(object):
     def __init__(self):
         self.listeners = {}
 
@@ -142,7 +142,7 @@ FSEvent = Enum("Events", """
 class FS(object):
     def __init__(self, root):
         self.root = root
-        self.coCtx = CoroutineContext()
+        self.eCtx = EventContext()
 
 class FileTSGettingError(Exception):
     pass
@@ -199,13 +199,13 @@ class FileInfo(FSNode):
             yield False
 
         if p.returncode != 0:
-            self.fs.coCtx.notify(FSEvent.FILE_MODIFY_ERROR, self,
+            self.fs.eCtx.notify(FSEvent.FILE_MODIFY_ERROR, self,
                 returncode = p.returncode,
                 popen = p
             )
         else:
             self.modify = p.communicate()[0].decode("utf-8").strip()
-            self.fs.coCtx.notify(FSEvent.FILE_MODIFY_GOT, self)
+            self.fs.eCtx.notify(FSEvent.FILE_MODIFY_GOT, self)
 
 # Directory Items Per Yield
 DIPY = 100
@@ -233,13 +233,13 @@ class DirectoryInfo(FSNode):
             if isdir(ep):
                 n = DirectoryInfo(np, directory = self)
                 dirs[np] = n
-                self.fs.coCtx.notify(FSEvent.DIRECTORY_FOUND, n)
+                self.fs.eCtx.notify(FSEvent.DIRECTORY_FOUND, n)
             elif isfile(ep):
                 n = FileInfo(np, directory = self)
                 files[np] = n
-                self.fs.coCtx.notify(FSEvent.FILE_FOUND, n)
+                self.fs.eCtx.notify(FSEvent.FILE_FOUND, n)
             else:
-                self.fs.coCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, self,
+                self.fs.eCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, self,
                     path = np
                 )
                 continue
@@ -297,12 +297,12 @@ class FileTree(Treeview):
 
         self.iidGen = iidGenerator()
 
-        coCtx = rootDir.fs.coCtx
-        coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
-        coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
-        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_MODIFY_ERROR)
-        coCtx.listen(self.onDirectoryNodeSkipped,
+        eCtx = rootDir.fs.eCtx
+        eCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
+        eCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
+        eCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
+        eCtx.listen(self.onFileTSReadError, FSEvent.FILE_MODIFY_ERROR)
+        eCtx.listen(self.onDirectoryNodeSkipped,
             FSEvent.DIRECTORY_NODE_SKIPPED
         )
 
@@ -378,12 +378,12 @@ class RootInfo(Frame):
             sticky = "SW"
         )
 
-        coCtx = rootDir.fs.coCtx
-        coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
-        coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
-        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_MODIFY_ERROR)
-        coCtx.listen(self.onDirectoryNodeSkipped,
+        eCtx = rootDir.fs.eCtx
+        eCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
+        eCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
+        eCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
+        eCtx.listen(self.onFileTSReadError, FSEvent.FILE_MODIFY_ERROR)
+        eCtx.listen(self.onDirectoryNodeSkipped,
             FSEvent.DIRECTORY_NODE_SKIPPED
         )
 
