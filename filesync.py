@@ -170,6 +170,8 @@ class FSNode(object):
         if directory:
             self.d = directory
 
+        self.req = set()
+
     @property
     def ep(self):
         try:
@@ -183,6 +185,22 @@ class FSNode(object):
                 ep = join(d.ep, self.dp)
             self._ep = ep
             return ep
+
+    def requestAttribute(self, attr, coCtx, coDisp):
+        assert attr not in self.__dict__, \
+            "Attempt to request available attribute " + attr
+
+        req = self.req
+
+        if attr in req:
+            # already requested
+            return
+
+        coName = "coGet" + attr.title()
+        coFn = getattr(self, coName)
+        co = coFn(coCtx)
+        coDisp.enqueue(co)
+        req.add(attr)
 
 class FileInfo(FSNode):
     def coGetModify(self, coCtx):
@@ -251,7 +269,7 @@ class DirectoryInfo(FSNode):
                 y = DIPY
             else:
                 y -= 1
-            coDisp.enqueue(f.coGetModify(coCtx))
+            f.requestAttribute("modify", coCtx, coDisp)
         for d in self.dirs.values():
             if y <= 0:
                 yield True
