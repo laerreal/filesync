@@ -39,6 +39,9 @@ from enum import \
 from itertools import \
     count
 
+from argparse import \
+    ArgumentParser
+
 # Actual program below
 
 listeners = {}
@@ -401,9 +404,18 @@ class MainWindow(Tk):
             pass
 
 if __name__ == "__main__":
-    print("Re@l file mirrorer")
+    ap = ArgumentParser(description = "Re@l file syncronization tool.")
+    ap.add_argument('roots',
+        metavar = "D",
+        type = str,
+        nargs = "*",
+        help = "A root directory to syncronize",
+        default = "."
+    )
 
-    root = MainWindow("/media/data/Docs/Game saves/")
+    args = ap.parse_args()
+
+    root = MainWindow(args.roots[0])
     root.geometry("1024x760")
     root.mainloop()
 
