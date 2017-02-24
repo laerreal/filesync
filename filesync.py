@@ -344,16 +344,19 @@ class FileTree(Treeview):
         self.item(self.fsn2iid[fi], values = ("!: %d" % returncode))
 
     def onDirectoryFound(self, e, di):
+        _open = False
         try:
             parent = self.fsn2iid[di.d]
         except AttributeError:
             parent = ""
+            _open = True
         iid = self.genIID(di)
 
         self.insert(parent, "end",
             iid = iid,
             text = di.dp,
-            values = ("...")
+            values = ("..."),
+            open = _open
         )
 
 class RootInfo(Frame):
