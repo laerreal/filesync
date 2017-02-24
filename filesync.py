@@ -272,6 +272,15 @@ class DirectoryInfo(FSNode):
         self.files, self.dirs, self.nodes = files, dirs, nodes
 
     def coRecursiveReading(self, coDisp):
+        while True:
+            try:
+                dirs = self.dirs
+            except AttributeError:
+                self.requestAttribute("nodes", coDisp)
+                yield Yield.LONG_WAIT
+            else:
+                break
+
         y = DIPY
         for f in self.files.values():
             if y <= 0:
@@ -280,19 +289,16 @@ class DirectoryInfo(FSNode):
             else:
                 y -= 1
             f.requestAttribute("modify", coDisp)
-        for d in self.dirs.values():
+        for d in dirs.values():
             if y <= 0:
                 yield True
                 y = DIPY
             else:
-                y -= 4 # different price
-                d.enqueueRecursiveReading(coDisp)
+                y -= 1
+            d.enqueueRecursiveReading(coDisp)
 
     def enqueueRecursiveReading(self, coDisp):
-        dirPipe = CoPipe()
-        dirPipe.append(self.coGetNodes())
-        dirPipe.append(self.coRecursiveReading(coDisp))
-        coDisp.enqueue(dirPipe.coRun())
+        coDisp.enqueue(self.coRecursiveReading(coDisp))
 
 # Widgets
 # -------
