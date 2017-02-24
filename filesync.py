@@ -51,28 +51,6 @@ class Yield(Enum):
     READY = True
     LONG_WAIT = 2
 
-class CoPipe(object):
-    def __init__(self):
-        self.queue = []
-
-    def append(self, co):
-        self.queue.append(co)
-
-    def coRun(self):
-        while True:
-            try:
-                current = self.queue.pop(0)
-            except IndexError:
-                break # StopIteration
-            else:
-                while True:
-                    try:
-                        res = next(current)
-                    except StopIteration:
-                        break
-                    else:
-                        yield res
-
 CO_LIMIT = 10
 class CoDisp(object):
     def __init__(self):
