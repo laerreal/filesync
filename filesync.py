@@ -11,6 +11,7 @@ from sys import \
 if version_info > (3,):
     # Python 3
     xrange = range
+    long = int
     exec("from tkinter import " + TK_IMPORT)
     exec("from tkinter.ttk import " + TTK_IMPORT)
 else:
