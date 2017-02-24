@@ -252,8 +252,6 @@ def iidGenerator():
         yield str(next(c))
 
 class FileTree(Treeview):
-    iidGen = iidGenerator()
-
     def __init__(self, parent, rootDir, *args, **kw):
         kw["columns"] = ("info")
         Treeview.__init__(self, parent, *args, **kw)
@@ -267,6 +265,8 @@ class FileTree(Treeview):
         listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
         listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
         listen(self.onDirectoryNodeSkipped, FSEvent.DIRECTORY_NODE_SKIPPED)
+        self.iidGen = iidGenerator()
+
 
         # File system node to iid
         self.fsn2iid = {
