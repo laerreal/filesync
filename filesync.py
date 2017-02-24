@@ -441,6 +441,7 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     root = MainWindow(args.roots)
+    root.title(ap.description)
     root.geometry("1024x760")
     root.mainloop()
 
