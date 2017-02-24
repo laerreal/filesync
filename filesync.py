@@ -327,7 +327,7 @@ class FileTree(Treeview):
         self.insert(parent, "end",
             iid = iid,
             text = fi.dp,
-            values = ("?")
+            values = ("...")
         )
 
     def onDirectoryNodeSkipped(self, e, di, path):
@@ -337,7 +337,7 @@ class FileTree(Treeview):
         self.insert(parent, "end",
             iid = iid,
             text = path,
-            values = ("unknown")
+            values = ("?")
         )
 
     def onFileTSReaded(self, e, fi):
@@ -358,7 +358,7 @@ class FileTree(Treeview):
         self.insert(parent, "end",
             iid = iid,
             text = di.dp,
-            values = ("..."),
+            values = ("[...]"),
             open = _open
         )
 
