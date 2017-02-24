@@ -5,9 +5,10 @@
 TK_IMPORT = "Tk, TclError, Label, Frame"
 TTK_IMPORT = "Treeview, Notebook"
 
-try:
-    xrange
-except NameError:
+from sys import \
+    version_info
+
+if version_info > (3,):
     # Python 3
     xrange = range
     exec("from tkinter import " + TK_IMPORT)
