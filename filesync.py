@@ -18,8 +18,6 @@ else:
     exec("from ttk import " + TTK_IMPORT)
 
 # Any python
-from importlib import \
-    import_module
 
 from subprocess import \
     Popen, \
