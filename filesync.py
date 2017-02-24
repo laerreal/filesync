@@ -60,6 +60,7 @@ class CoDisp(object):
         self.queue = []
         self.ready = []
         self.waiting = []
+        self.longWaiting = []
 
     def enqueue(self, co):
         self.queue.append(co)
@@ -69,6 +70,7 @@ class CoDisp(object):
         q = self.queue
         w = self.waiting
         g = self.gotten
+        lw = self.longWaiting
 
         try:
             co = r.pop(0)
@@ -80,7 +82,13 @@ class CoDisp(object):
                     try:
                         co = w.pop(0)
                     except IndexError:
-                        return False
+                        try:
+                            co = lw.pop(0)
+                        except IndexError:
+                            return False
+                        else:
+                            g += 1
+                            self.gotten = g
                 else:
                     g += 1
                     self.gotten = g
@@ -101,8 +109,8 @@ class CoDisp(object):
         if ret == Yield.LONG_WAIT:
             g -= 1
             self.gotten = g
-            q.append(co)
-            return bool(r or q) # This is not quite correct
+            lw.append(co)
+            return bool(r or q)
 
         w.append(co)
         return bool(r or q)
