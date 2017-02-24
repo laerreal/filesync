@@ -147,6 +147,7 @@ FSEvent = Enum("Events", """
     DIRECTORY_NODE_SKIPPED
     FILE_MODIFY_ERROR
     FILE_FOUND
+    DIRECTORY_SCANNED
 """)
 
 class FS(object):
@@ -261,6 +262,7 @@ class DirectoryInfo(FSNode):
 
         self.files, self.dirs, self.nodes = files, dirs, nodes
         self.skipped = skipped
+        self.fs.eCtx.notify(FSEvent.DIRECTORY_SCANNED, self)
 
     def coRecursiveReading(self, coDisp):
         while True:
