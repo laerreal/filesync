@@ -289,6 +289,10 @@ class DirectoryInfo(FSNode):
 # Widgets
 # -------
 
+FILE_PENDING = "..."
+DIRECTORY_PENDING = "[...]"
+UNKNOWN_ENTRY = "?"
+
 def iidGenerator():
     c = count(0)
     while True:
@@ -333,7 +337,7 @@ class FileTree(Treeview):
         self.insert(parent, "end",
             iid = iid,
             text = fi.dp,
-            values = ("...")
+            values = [ FILE_PENDING ]
         )
 
     def onDirectoryNodeSkipped(self, e, di, path):
@@ -343,7 +347,7 @@ class FileTree(Treeview):
         self.insert(parent, "end",
             iid = iid,
             text = path,
-            values = ("?")
+            values = [ UNKNOWN_ENTRY ]
         )
 
     def onFileTSReaded(self, e, fi):
@@ -364,7 +368,7 @@ class FileTree(Treeview):
         self.insert(parent, "end",
             iid = iid,
             text = di.dp,
-            values = ("[...]"),
+            values = [ DIRECTORY_PENDING ],
             open = _open
         )
 
