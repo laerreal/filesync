@@ -176,7 +176,8 @@ class DirectoryInfo(FSNode):
         coDisp.enqueue(dirPipe.coRun())
 
 class CoPipe(object):
-    queue = []
+    def __init__(self):
+        self.queue = []
 
     def append(self, co):
         self.queue.append(co)
