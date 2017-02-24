@@ -194,7 +194,7 @@ class FSNode(object):
             self._ep = ep
             return ep
 
-    def requestAttribute(self, attr, coCtx, coDisp):
+    def requestAttribute(self, attr, coDisp):
         assert attr not in self.__dict__, \
             "Attempt to request available attribute " + attr
 
@@ -206,12 +206,12 @@ class FSNode(object):
 
         coName = "coGet" + attr.title()
         coFn = getattr(self, coName)
-        co = coFn(coCtx)
+        co = coFn()
         coDisp.enqueue(co)
         req.add(attr)
 
 class FileInfo(FSNode):
-    def coGetModify(self, coCtx):
+    def coGetModify(self):
         p = Popen(["stat", "-c", "%y", self.ep],
             stdout = PIPE,
             stderr = PIPE
@@ -221,19 +221,19 @@ class FileInfo(FSNode):
             yield False
 
         if p.returncode != 0:
-            coCtx.notify(FSEvent.FILE_MODIFY_ERROR, self,
+            self.fs.coCtx.notify(FSEvent.FILE_MODIFY_ERROR, self,
                 returncode = p.returncode,
                 popen = p
             )
         else:
             self.modify = p.communicate()[0].decode("utf-8").strip()
-            coCtx.notify(FSEvent.FILE_MODIFY_GOT, self)
+            self.fs.coCtx.notify(FSEvent.FILE_MODIFY_GOT, self)
 
 # Directory Items Per Yield
 DIPY = 100
 
 class DirectoryInfo(FSNode):
-    def coGetNodes(self, coCtx):
+    def coGetNodes(self):
         # node pathes
         nps = listdir(self.ep)
 
@@ -255,13 +255,15 @@ class DirectoryInfo(FSNode):
             if isdir(ep):
                 n = DirectoryInfo(np, directory = self)
                 dirs[np] = n
-                coCtx.notify(FSEvent.DIRECTORY_FOUND, n)
+                self.fs.coCtx.notify(FSEvent.DIRECTORY_FOUND, n)
             elif isfile(ep):
                 n = FileInfo(np, directory = self)
                 files[np] = n
-                coCtx.notify(FSEvent.FILE_FOUND, n)
+                self.fs.coCtx.notify(FSEvent.FILE_FOUND, n)
             else:
-                coCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, self, path = np)
+                self.fs.coCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, self,
+                    path = np
+                )
                 continue
 
             n._ep = ep
@@ -269,7 +271,7 @@ class DirectoryInfo(FSNode):
 
         self.files, self.dirs, self.nodes = files, dirs, nodes
 
-    def coRecursiveReading(self, coDisp, coCtx):
+    def coRecursiveReading(self, coDisp):
         y = DIPY
         for f in self.files.values():
             if y <= 0:
@@ -277,19 +279,19 @@ class DirectoryInfo(FSNode):
                 y = DIPY
             else:
                 y -= 1
-            f.requestAttribute("modify", coCtx, coDisp)
+            f.requestAttribute("modify", coDisp)
         for d in self.dirs.values():
             if y <= 0:
                 yield True
                 y = DIPY
             else:
                 y -= 4 # different price
-                d.enqueueRecursiveReading(coDisp, coCtx)
+                d.enqueueRecursiveReading(coDisp)
 
-    def enqueueRecursiveReading(self, coDisp, coCtx):
+    def enqueueRecursiveReading(self, coDisp):
         dirPipe = CoPipe()
-        dirPipe.append(self.coGetNodes(coCtx))
-        dirPipe.append(self.coRecursiveReading(coDisp, coCtx))
+        dirPipe.append(self.coGetNodes())
+        dirPipe.append(self.coRecursiveReading(coDisp))
         coDisp.enqueue(dirPipe.coRun())
 
 # Widgets
@@ -301,7 +303,7 @@ def iidGenerator():
         yield str(next(c))
 
 class FileTree(Treeview):
-    def __init__(self, parent, rootDir, coCtx, *args, **kw):
+    def __init__(self, parent, rootDir, *args, **kw):
         kw["columns"] = ("info")
         Treeview.__init__(self, parent, *args, **kw)
 
@@ -311,6 +313,7 @@ class FileTree(Treeview):
 
         self.iidGen = iidGenerator()
 
+        coCtx = rootDir.fs.coCtx
         coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
         coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
         coCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
@@ -377,11 +380,9 @@ class RootInfo(Frame):
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        coCtx = CoroutineContext()
+        rootDir.enqueueRecursiveReading(coDisp)
 
-        rootDir.enqueueRecursiveReading(coDisp, coCtx)
-
-        ft = FileTree(self, rootDir, coCtx)
+        ft = FileTree(self, rootDir)
         ft.grid(row = 0, column = 0, sticky="NESW")
 
         self.rowconfigure(1, weight=0)
@@ -393,6 +394,7 @@ class RootInfo(Frame):
             sticky = "SW"
         )
 
+        coCtx = rootDir.fs.coCtx
         coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
         coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
         coCtx.listen(self.onFileTSReaded, FSEvent.FILE_MODIFY_GOT)
