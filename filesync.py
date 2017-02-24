@@ -2,7 +2,7 @@
 
 # imports below
 
-TK_IMPORT = "Tk, TclError, Label"
+TK_IMPORT = "Tk, TclError, Label, Frame"
 TTK_IMPORT = "Treeview, Notebook"
 
 try:
@@ -322,39 +322,20 @@ class FileTree(Treeview):
             values = ("...")
         )
 
-# Coroutine Iterations Per Main Loop Iteration
-CIPMLI = 10
-
-class MainWindow(Tk):
-    def __init__(self, rootDirectoryEffectiveNames):
-        Tk.__init__(self)
-
-        self.coDisp = CoDisp()
+class RootInfo(Frame):
+    def __init__(self, parent, rootDir, coDisp):
+        Frame.__init__(self, parent)
 
         self.grid()
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        nbRoots = Notebook(self)
-        nbRoots.grid(row = 0, column = 0, sticky = "NESW")
+        coCtx = CoroutineContext()
 
-        for rden in rootDirectoryEffectiveNames:
-            coCtx = CoroutineContext()
-            rootDir = DirectoryInfo(rden)
-            rootDir.enqueueRecursiveReading(self.coDisp, coCtx)
+        rootDir.enqueueRecursiveReading(coDisp, coCtx)
 
-            ft = FileTree(nbRoots, rootDir, coCtx)
-            ft.grid(row = 0, column = 0, sticky="NESW")
-
-            nbRoots.add(ft, text = rden)
-
-            coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
-            coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-            coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
-            coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
-            coCtx.listen(self.onDirectoryNodeSkipped,
-                FSEvent.DIRECTORY_NODE_SKIPPED
-            )
+        ft = FileTree(self, rootDir, coCtx)
+        ft.grid(row = 0, column = 0, sticky="NESW")
 
         self.rowconfigure(1, weight=0)
         self.statusBar = l = Label(self)
@@ -363,6 +344,14 @@ class MainWindow(Tk):
             column = 0,
             columns = 1, # all
             sticky = "SW"
+        )
+
+        coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
+        coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
+        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
+        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
+        coCtx.listen(self.onDirectoryNodeSkipped,
+            FSEvent.DIRECTORY_NODE_SKIPPED
         )
 
         self.totalNodes = 1
@@ -403,6 +392,27 @@ class MainWindow(Tk):
                 self.totalReadErrors
             )
         )
+
+# Coroutine Iterations Per Main Loop Iteration
+CIPMLI = 10
+
+class MainWindow(Tk):
+    def __init__(self, rootDirectoryEffectiveNames):
+        Tk.__init__(self)
+
+        coDisp = self.coDisp = CoDisp()
+
+        self.grid()
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+
+        nbRoots = Notebook(self)
+        nbRoots.grid(row = 0, column = 0, sticky = "NESW")
+
+        for rden in rootDirectoryEffectiveNames:
+            rootDir = DirectoryInfo(rden)
+            ri = RootInfo(self, rootDir, coDisp)
+            nbRoots.add(ri, text = rden)
 
     def iterateCoroutines(self):
         i = CIPMLI
