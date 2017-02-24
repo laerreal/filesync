@@ -3,7 +3,7 @@
 # imports below
 
 TK_IMPORT = "Tk, TclError, Label"
-TTK_IMPORT = "Treeview"
+TTK_IMPORT = "Treeview, Notebook"
 
 try:
     xrange
@@ -326,20 +326,35 @@ class FileTree(Treeview):
 CIPMLI = 10
 
 class MainWindow(Tk):
-    def __init__(self, effectiveRootDirectoryName):
+    def __init__(self, rootDirectoryEffectiveNames):
         Tk.__init__(self)
 
         self.coDisp = CoDisp()
-        coCtx = CoroutineContext()
-
-        self.rootDir = rootDir = DirectoryInfo(effectiveRootDirectoryName)
-        rootDir.enqueueRecursiveReading(self.coDisp, coCtx)
 
         self.grid()
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
-        FileTree(self, rootDir, coCtx).grid(row = 0, column = 0, sticky="NESW")
+        nbRoots = Notebook(self)
+        nbRoots.grid(row = 0, column = 0, sticky = "NESW")
+
+        for rden in rootDirectoryEffectiveNames:
+            coCtx = CoroutineContext()
+            rootDir = DirectoryInfo(rden)
+            rootDir.enqueueRecursiveReading(self.coDisp, coCtx)
+
+            ft = FileTree(nbRoots, rootDir, coCtx)
+            ft.grid(row = 0, column = 0, sticky="NESW")
+
+            nbRoots.add(ft, text = rden)
+
+            coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
+            coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
+            coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
+            coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
+            coCtx.listen(self.onDirectoryNodeSkipped,
+                FSEvent.DIRECTORY_NODE_SKIPPED
+            )
 
         self.rowconfigure(1, weight=0)
         self.statusBar = l = Label(self)
@@ -355,14 +370,6 @@ class MainWindow(Tk):
         self.totalTSReaded = 0
         self.totalFiles = 0
         self.totalReadErrors = 0
-
-        coCtx.listen(self.onFileFound, FSEvent.FILE_FOUND)
-        coCtx.listen(self.onDirectoryFound, FSEvent.DIRECTORY_FOUND)
-        coCtx.listen(self.onFileTSReaded, FSEvent.FILE_TS_READED)
-        coCtx.listen(self.onFileTSReadError, FSEvent.FILE_TS_READ_ERROR)
-        coCtx.listen(self.onDirectoryNodeSkipped,
-            FSEvent.DIRECTORY_NODE_SKIPPED
-        )
 
     def onFileFound(self, *a, **kw):
         self.totalFiles += 1
@@ -423,7 +430,7 @@ if __name__ == "__main__":
 
     args = ap.parse_args()
 
-    root = MainWindow(args.roots[0])
+    root = MainWindow(args.roots)
     root.geometry("1024x760")
     root.mainloop()
 
