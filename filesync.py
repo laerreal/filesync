@@ -174,6 +174,9 @@ class FSNode(object):
         self.dp = directoryPath
         if directory:
             self.d = directory
+            self.fs = directory.fs
+        else:
+            self.fs = FS(self)
 
         self.req = set()
 
