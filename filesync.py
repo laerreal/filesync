@@ -39,6 +39,8 @@ from enum import \
 from itertools import \
     count
 
+# Actual program below
+
 listeners = {}
 
 def notify(event, *args, **kw):
@@ -66,9 +68,6 @@ FSEvent = Enum("Events", """
     FILE_TS_READ_ERROR
     FILE_FOUND
 """)
-
-
-# Actual program below
 
 class FileTSGettingError(Exception):
     pass
