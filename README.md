@@ -6,6 +6,6 @@ Features
 
 Disadvantages
 -----------
-* wrote in Python
+* written in Python
 * GUI bases on Tkinter
 
