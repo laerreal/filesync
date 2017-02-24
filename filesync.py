@@ -322,10 +322,10 @@ class FileTree(Treeview):
 CIPMLI = 10
 
 class MainWindow(Tk):
-    coDisp = CoDisp()
-
     def __init__(self, effectiveRootDirectoryName):
         Tk.__init__(self)
+
+        self.coDisp = CoDisp()
 
         self.rootDir = rootDir = DirectoryInfo(effectiveRootDirectoryName)
         rootDir.enqueueRecursiveReading(self.coDisp)
