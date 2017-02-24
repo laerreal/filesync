@@ -351,10 +351,10 @@ class FileTree(Treeview):
         )
 
     def onFileTSReaded(self, e, fi):
-        self.item(self.fsn2iid[fi], values = (fi.modify,))
+        self.item(self.fsn2iid[fi], values = [fi.modify])
 
     def onFileTSReadError(self, e, fi, returncode, popen):
-        self.item(self.fsn2iid[fi], values = ("!: %d" % returncode))
+        self.item(self.fsn2iid[fi], values = ["!: %d" % returncode])
 
     def onDirectoryFound(self, e, di):
         _open = False
