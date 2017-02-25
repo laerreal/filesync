@@ -53,6 +53,10 @@ class Yield(Enum):
     READY = True
     LONG_WAIT = 2
 
+# Simulatenous dispatching is not allowd. Hence, current dispatcher may declare
+# itself globally.
+coDisp = None
+
 CO_LIMIT = 10
 class CoDisp(object):
     def __init__(self):
@@ -95,12 +99,19 @@ class CoDisp(object):
             else:
                 co = w.pop(0)
 
+        global coDisp
+        coDisp = self
+
         try:
             ret = next(co)
         except StopIteration:
             g -= 1
             self.gotten = g
+
+            coDisp = None
             return bool(r or q)
+        else:
+            coDisp = None
 
         if ret == True:
             r.append(co)
