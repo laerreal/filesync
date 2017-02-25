@@ -127,6 +127,8 @@ class CoDisp(object):
         return bool(r or q)
 
 class EventContext(object):
+    # TODO: turn events to coroutine-based signals
+    # TODO: add listener removing method
     def __init__(self):
         self.listeners = {}
 
