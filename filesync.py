@@ -275,7 +275,7 @@ class DirectoryInfo(FSNode):
         self.skipped = skipped
         self.fs.eCtx.notify(FSEvent.DIRECTORY_SCANNED, self)
 
-    def coRecursiveReading(self, coDisp):
+    def coRecursiveReading(self):
         while True:
             try:
                 dirs = self.dirs
@@ -295,7 +295,7 @@ class DirectoryInfo(FSNode):
             d.enqueueRecursiveReading(coDisp)
 
     def enqueueRecursiveReading(self, coDisp):
-        coDisp.enqueue(self.coRecursiveReading(coDisp))
+        coDisp.enqueue(self.coRecursiveReading())
 
 # Widgets
 # -------
