@@ -102,7 +102,7 @@ class FSTestDir(FSTestNode):
         for c in self.children.values():
             if c.exists():
                 c.remove()
-        self.leave()
+        chdir("..")
 
     def remove(self):
         self.clear()
