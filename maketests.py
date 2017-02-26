@@ -99,7 +99,7 @@ class FSTestDir(FSTestNode):
 
     def clear(self):
         self.enter()
-        for c in self.children:
+        for c in self.children.values():
             if c.exists():
                 c.remove()
         self.leave()
