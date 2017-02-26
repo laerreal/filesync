@@ -117,6 +117,20 @@ class FSTestDir(FSTestNode):
             *[ dcp(c) for c in self.children.values() ]
         )
 
+    def __getitem__(self, path):
+        cur = self
+        for name in path.split(sep):
+            if not name or name == ".":
+                continue
+            if name == "..":
+                cur = cur.parent
+            else:
+                try:
+                    cur = cur.children[name]
+                except KeyError:
+                    raise IOError('"%s" have no "%s"' % (cur.name, name))
+        return cur
+
 D = FSTestDir
 F = FSTestFile
 
