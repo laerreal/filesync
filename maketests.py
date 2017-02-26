@@ -104,7 +104,7 @@ class FSTestDir(FSTestNode):
                 c.remove()
         self.leave()
 
-    def remove(self, child):
+    def remove(self):
         self.clear()
         cmd(["rmdir", self.name])
 
