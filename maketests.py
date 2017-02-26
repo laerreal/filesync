@@ -206,5 +206,8 @@ if __name__ == "__main__":
 
     root = FSTestDir("test2", dcp(baseFS))
 
+    # Do several modifications
+    root[join("root", "soldFiles", "smallFile")].size += 13
+
     root.remove()
     updateFS(root, verbose = verbose)
