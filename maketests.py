@@ -200,7 +200,11 @@ if __name__ == "__main__":
         stdout.write = writeFlush
 
     root = FSTestDir("test1", dcp(baseFS))
+
+    root.remove()
     updateFS(root, verbose = verbose)
 
     root = FSTestDir("test2", dcp(baseFS))
+
+    root.remove()
     updateFS(root, verbose = verbose)
