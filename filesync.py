@@ -172,6 +172,8 @@ FSEvent = Enum("Events", """
     DIRECTORY_NODE_SKIPPED
     FILE_MODIFY_ERROR
     FILE_FOUND
+    FILE_SIZE_GOT
+    FILE_SIZE_ERROR
     DIRECTORY_SCANNED
 """)
 
@@ -242,6 +244,24 @@ class FileInfo(FSNode):
         else:
             self.modify = p.communicate()[0].decode("utf-8").strip()
             self.fs.eCtx.notify(FSEvent.FILE_MODIFY_GOT, self)
+
+    def coGetSize(self):
+        p = Popen(["stat", "-c", "%s", self.ep],
+            stdout = PIPE,
+            stderr = PIPE
+        )
+
+        while p.poll() is None:
+            yield False
+
+        if p.returncode != 0:
+            self.fs.eCtx.notify(FSEvent.FILE_SIZE_ERROR, self,
+                returncode = p.returncode,
+                popen = p
+            )
+        else:
+            self.size = long(p.communicate()[0])
+            self.fs.eCtx.notify(FSEvent.FILE_SIZE_GOT, self)
 
 # Directory Items Per Yield
 DIPY = 100
