@@ -1166,10 +1166,15 @@ class MainWindow(Tk):
         nbRoots = Notebook(self)
         nbRoots.grid(row = 0, column = 0, sticky = "NESW")
 
-        for rden in rootDirectoryEffectiveNames:
-            rootDir = DirectoryInfo(rden)
-            ri = RootInfo(self, rootDir, coDisp)
-            nbRoots.add(ri, text = rden)
+        rootDirs = [
+            DirectoryInfo(rden) for rden in rootDirectoryEffectiveNames
+        ]
+        ci = CmpInfo(self, rootDirs, coDisp)
+        nbRoots.add(ci, text = "Overwiew")
+
+        for rd in rootDirs:
+            ri = RootInfo(self, rd, coDisp)
+            nbRoots.add(ri, text = rd.dp)
 
         self.rowconfigure(1, weight = 0)
         self.statusBar = l = Label(self)
