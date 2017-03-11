@@ -31,6 +31,7 @@ from os.path import \
     isdir
 
 from os import \
+    O_NONBLOCK, \
     listdir
 
 from enum import \
@@ -42,8 +43,19 @@ from itertools import \
 from argparse import \
     ArgumentParser
 
+from fcntl import \
+    F_SETFL, \
+    fcntl
+
 # Actual program below
 # ====================
+
+# TODO: implement one for Windows
+def openNoBlock(*args):
+    f = open(*args)
+    fd = f.fileno()
+    fcntl(fd, F_SETFL, O_NONBLOCK)
+    return f
 
 # Coroutine API
 # -------------
