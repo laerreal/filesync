@@ -851,6 +851,305 @@ class RootInfo(Frame):
             )
         )
 
+def defaultFileCellValue(f = None):
+    return "-" if isinstance(f, FSNoneNode) else ""
+
+class CmpResTree(Treeview):
+    def __init__(self, parent, rootDirs, coDisp, *args, **kw):
+        fs2col = self.fs2col = {}
+
+        columns = [ ":summary" ]
+        for idx, rd in enumerate(rootDirs):
+            col = rd.dp
+            columns.append(col)
+            fs2col[rd.fs] = (idx, col)
+
+        kw["columns"] = columns
+        Treeview.__init__(self, parent, *args, **kw)
+
+        self.column("#0")
+
+        self.heading(":summary", text = "Summary")
+
+        # Evaluate headings
+        allDP = [ rd.dp for rd in rootDirs]
+        cSfx = ""
+
+        while len(allDP) > 1:
+            nextDP = []
+
+            prefix, curSfx = split(allDP[0])
+            if prefix:
+                nextDP.append(prefix)
+
+            for dp in allDP[1:]:
+                prefix, suffix = split(dp)
+                if curSfx != suffix:
+                    break
+                if prefix:
+                    nextDP.append(prefix)
+            else:
+                allDP = nextDP
+                cSfx = join(curSfx, cSfx)
+                continue
+
+            break
+
+        cSfxStrip = len(cSfx)
+
+        self.heading("#0", text = cSfx)
+        for rd in rootDirs:
+            self.heading(rd.dp,
+                text = rd.dp[:-cSfxStrip] if cSfxStrip > 0 else rd.dp
+            )
+
+        eCtx = EventContext()
+        cmpCtx = RootComparationContext(rootDirs, eCtx)
+        coDisp.enqueue(cmpCtx.coCompare())
+
+        self.iidGen = iidGenerator()
+        # File system node comparation info to iid
+        self.fsnci2iid = {None: ""}
+        self.iid2fsnci = {}
+
+        # Maintaning the tree
+        eCtx.listen(self.onDirCmpInfo, FSCEvent.DIR_CMP_INFO)
+        eCtx.listen(self.onFileCmpInfo, FSCEvent.FILE_CMP_INFO)
+
+        # handling differences
+        eCtx.listen(self.onFileDiffs, FSCEvent.DIFF_FILES)
+
+        self.coDisp = coDisp
+
+        self.refreshQueued = False
+
+        self.bind("<<TreeviewOpen>>", self.onOpen, "+")
+
+    # Miscellaneous
+    # =============
+
+    def genIID(self, fscin):
+        iid = next(self.iidGen)
+        self.fsnci2iid[fscin] = iid
+        self.iid2fsnci[iid] = fscin
+        return iid
+
+    def sortFSNodes(self, nodes):
+        fs2col = self.fs2col
+
+        return sorted(nodes,
+            key = lambda n : fs2col[n.fs][0]
+        )
+
+    # TODO: spread refresh mechanizm to other widgets
+    def queueRefresh(self):
+        if self.refreshQueued:
+            return
+
+        self.refreshQueued = True
+        self.coDisp.enqueue(self.coRefresh())
+
+    def coRefresh(self):
+        attrs = FileComparationInfo.attrs
+
+        self.refreshQueued = False
+
+        if not self.selection():
+            # select something
+            iid = self.get_children("")[0]
+            self.selection_set(iid)
+            # http://stackoverflow.com/questions/11273612/how-to-set-focus-for-tkinter-widget
+            self.focus(iid)
+
+        queue = [""]
+
+        while queue:
+            iid = queue.pop(0)
+            for ciid in self.get_children(iid):
+                if self.item(ciid, "open"):
+                    queue.append(ciid)
+
+                yield True
+
+                # another refreshing was queueed
+                if self.refreshQueued:
+                    raise StopIteration()
+
+                fscin = self.iid2fsnci[ciid]
+                summary = ""
+
+                if isinstance(fscin, DirectoryComparationInfo):
+
+                    childFCI = fscin.childFCI
+                    childFCIDiff = fscin.childFCIDiff
+                    childDCI = fscin.childDCI
+                    extraFCI = fscin.totalFCI - childFCI
+                    extraFCIDiff = fscin.totalFCIDiff - childFCIDiff
+                    extralDCI = fscin.totalDCI - childDCI
+
+                    if childFCI:
+                        summary += " %u" % childFCI
+                    if childFCIDiff:
+                        summary += " (%u)" % childFCIDiff
+                    if childDCI:
+                        summary += " [%u]" % childDCI
+
+                    extra = ""
+                    if extraFCIDiff or extraFCI:
+                        extra += " %u" % extraFCI
+                    if extraFCIDiff:
+                        extra += " (%u)" % extraFCIDiff
+                    if extralDCI:
+                        extra += " [%u]" % extralDCI
+
+                    if extra:
+                        summary += " +" + extra
+
+                    if summary:
+                        summary = summary[1:]
+
+                elif isinstance(fscin, FileComparationInfo):
+                    m = fscin.mesh
+
+                    lost = False
+                    inProgress = False
+                    diffs = []
+                    for attr in attrs:
+                        for f1, f2 in fscin.pairs:
+                            if isinstance(f1, FSNoneNode):
+                                lost = True
+                                continue
+                            if isinstance(f2, FSNoneNode):
+                                lost = True
+                                continue
+
+                            res = m[f1][f2]
+                            try:
+                                if not res [attr]:
+                                    break
+                            except KeyError:
+                                inProgress = True
+                        else:
+                            continue
+                        diffs.append(attr)
+
+                    if inProgress:
+                        diffs.insert(0, FILE_PENDING)
+
+                    if lost:
+                        diffs.append("lost")
+
+                    if diffs:
+                        summary = ", ".join(diffs)
+
+                values = self.item(ciid, "values")
+                self.item(ciid, values = [summary] + list(values[1:]))
+
+    # Event handlers
+    # ==============
+
+    def onFileCmpInfo(self, event, fci):
+        parent = self.fsnci2iid[fci.p]
+        iid = self.genIID(fci)
+
+        values = [
+            ("-" if isinstance(fi, FSNoneNode) else FILE_PENDING) \
+                for fi in self.sortFSNodes(fci.files)
+        ]
+
+        self.insert(parent, "end",
+            iid = iid,
+            text = fci.dp,
+            values = [""] + values
+        )
+
+        self.queueRefresh()
+
+    def onDirCmpInfo(self, event, dci):
+        _open = False
+        try:
+            p = dci.p
+        except AttributeError:
+            parent = ""
+            _open = True
+        else:
+            parent = self.fsnci2iid[p]
+        iid = self.genIID(dci)
+
+        values = [
+            ("-" if isinstance(di, FSNoneNode) else DIRECTORY_PENDING) \
+                for di in self.sortFSNodes(dci.dirs)
+        ]
+
+        self.insert(parent, "end",
+            iid = iid,
+            text = dci.dp,
+            open = _open,
+            values = [""] + values
+        )
+
+        self.queueRefresh()
+
+    def onFileDiffs(self, event, fci):
+        self.queueRefresh()
+
+    def onOpen(self, *args):
+        self.queueRefresh()
+
+class CmpInfo(Frame):
+    def __init__(self, parent, rootDirs, coDisp, *args, **kw):
+        Frame.__init__(self, parent)
+
+        self.grid()
+        self.columnconfigure(0, weight = 1)
+
+        self.rowconfigure(0, weight = 1)
+        self.crt = crt = CmpResTree(self, rootDirs, coDisp)
+        crt.grid(row = 0, column = 0, sticky = "NESW")
+        crt.bind("<<TreeviewSelect>>", self.onSelect, "+")
+
+        self.rowconfigure(1, weight = 0)
+        self.infoFrame = infoFrame = Frame(self)
+        infoFrame.grid(row = 1, column = 0, sticky = "NESW")
+
+        infoFrame.grid()
+        infoFrame.columnconfigure(0, weight = 1)
+
+        infoFrame.rowconfigure(0, weight = 1)
+        self.nameLabel = l = Label(infoFrame)
+        l.grid(row = 0, column = 0, sticky = "NWS")
+
+        crt.focus_set()
+
+        self.updateInfo()
+
+    def updateInfo(self):
+        crt = self.crt
+        nameLabel = self.nameLabel
+        sel = crt.selection()
+
+        if not sel:
+            nameLabel.config(text = "Select something.")
+        elif len(sel) == 1:
+            iid = sel[0]
+            fsnci = crt.iid2fsnci[iid]
+
+            if isinstance(fsnci, FileComparationInfo):
+                text = "File: "
+            elif isinstance(fsnci, DirectoryComparationInfo):
+                text = "Directory: "
+            else:
+                text = "?: "
+
+            text += fsnci.dp
+
+            nameLabel.config(text = text)
+        else:
+            nameLabel.config(text = "Multiple selection.")
+
+    def onSelect(self, event):
+        self.updateInfo()
+
 # Coroutine Iterations Per Main Loop Iteration
 CIPMLI = 10
 
