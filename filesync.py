@@ -26,6 +26,7 @@ from subprocess import \
     PIPE
 
 from os.path import \
+    split, \
     join, \
     isfile, \
     isdir
@@ -38,6 +39,7 @@ from enum import \
     Enum
 
 from itertools import \
+    combinations, \
     count
 
 from argparse import \
@@ -386,6 +388,305 @@ class DirectoryInfo(FSNode):
 
     def enqueueRecursiveReading(self, coDisp):
         coDisp.enqueue(self.coRecursiveReading())
+
+# File system comparation API
+# ---------------------------
+
+class FSNoneNode(FSNode):
+    """ FSNoneNode is used by comparation subsystem. """
+    def __init__(self, directory):
+        super(FSNoneNode, self).__init__(None,
+            directory = directory
+        )
+
+# File System Comparation Event
+FSCEvent = Enum("FSCEvent", """
+    DIR_CMP_INFO
+    FILE_CMP_INFO
+    DIFF_DIR_SUBDIRS
+    DIFF_DIR_FILES
+    DIFF_FILES
+""")
+
+class FSNodeComparationInfo(object):
+    def __init__(self, directoryPath, parent = None):
+        if parent:
+            self.p = parent
+
+        self.dp = directoryPath
+
+    # relative apth
+    @property
+    def rp(self):
+        try:
+            return self._rp
+        except AttributeError:
+            try:
+                p = self.p
+            except AttributeError:
+                rp = self.dp
+            else:
+                rp = join(p.rp, self.dp)
+
+            self._rp = rp
+            return rp
+
+    def __hash__(self):
+        return hash(self.rp)
+
+class DirectoryComparationInfo(FSNodeComparationInfo):
+    def __init__(self, dirs, parent = None):
+        # dirs order is sugnificant
+        if parent is None:
+            directoryPath = "root:"
+        else:
+            for d in dirs:
+                if not isinstance(d, FSNoneNode):
+                    directoryPath = d.dp
+                    break
+
+        super(DirectoryComparationInfo, self).__init__(directoryPath,
+            parent = parent
+        )
+
+        self.dirs = dirs
+
+        self.childFCI = 0
+        self.childFCIDiff = 0
+        self.childDCI = 0
+
+        self.totalFCI = 0
+        self.totalFCIDiff = 0
+        self.totalDCI = 0
+
+    def accountFCI(self, fci):
+        if fci.p is self:
+            self.childFCI += 1
+
+        self.totalFCI += 1
+        try:
+            p = self.p
+        except AttributeError:
+            pass
+        else:
+            p.accountFCI(fci)
+
+    def accountFCIDiff(self, fci):
+        if fci.p is self:
+            self.childFCIDiff += 1
+
+        self.totalFCIDiff += 1
+        try:
+            p = self.p
+        except AttributeError:
+            pass
+        else:
+            p.accountFCIDiff(fci)
+
+    def accountDCI(self, dci):
+        if dci.p is self:
+            self.childDCI += 1
+
+        self.totalDCI += 1
+        try:
+            p = self.p
+        except AttributeError:
+            pass
+        else:
+            p.accountDCI(dci)
+
+class FileComparationInfo(FSNodeComparationInfo):
+    attrs = (
+        "modify",
+        "size",
+        "blocks"
+    )
+
+    def __init__(self, files, parent):
+        # files order is sugnificant
+        for f in files:
+            if not isinstance(f, FSNoneNode):
+                directoryPath = f.dp
+                break
+
+        super(FileComparationInfo, self).__init__(directoryPath,
+            parent = parent
+        )
+
+        self.files = files
+        pairs = self.pairs = tuple(combinations(files, 2))
+
+        m = self.mesh = {}
+        for f in files:
+            m[f] = {f: {}}
+
+        for f1, f2 in pairs:
+            m[f2][f1] = m[f1][f2] = {}
+
+    def coCompare(self, ctx):
+        eCtx = ctx.eCtx
+        pairs = self.pairs
+        m = self.mesh
+
+        attrs = FileComparationInfo.attrs
+
+        for f1, f2 in pairs:
+            if isinstance(f1, FSNoneNode) or isinstance(f2, FSNoneNode):
+                continue
+
+            for attr in attrs:
+                yield True
+
+                while True:
+                    try:
+                        a1 = getattr(f1, attr)
+                    except AttributeError:
+                        f1.requestAttribute(attr, coDisp)
+                        yield Yield.LONG_WAIT
+                    else:
+                        break
+
+                while True:
+                    try:
+                        a2 = getattr(f2, attr)
+                    except AttributeError:
+                        f2.requestAttribute(attr, coDisp)
+                        yield Yield.LONG_WAIT
+                    else:
+                        break
+
+                m[f1][f2][attr] = (a1 == a2)
+
+        for f1, f2 in pairs:
+            yield True
+
+            for attr in attrs:
+                if not m[f1][f2][attr]:
+                    break
+            else:
+                continue
+            break
+        else:
+            raise StopIteration()
+
+        self.p.accountFCIDiff(self)
+        eCtx.notify(FSCEvent.DIFF_FILES, self)
+
+class RootComparationContext(object):
+    def __init__(self, roots, eCtx):
+        self.roots = set(roots)
+        self.eCtx = eCtx
+
+    def coCompare(self):
+        attrs = FileComparationInfo.attrs
+
+        queue = []
+
+        roots = list(self.roots)
+        self.rootDci = dci = self.emitDirectoryComparationInfo(roots)
+
+        queue.append(dci)
+
+        while queue:
+            curDci = queue.pop(0)
+            cur = curDci.dirs
+
+            # queue subdirectories
+            dirSummary = set()
+
+            # d = Directory
+            for d in cur:
+                if not isinstance(d, FSNoneNode):
+                    while True:
+                        try:
+                            dirs = d.dirs
+                        except AttributeError:
+                            d.requestAttribute("nodes", coDisp)
+                            yield Yield.LONG_WAIT
+                        else:
+                            break
+
+                    dirSummary.update(dirs.keys())
+
+            yield True
+
+            if dirSummary:
+                for dn in dirSummary:
+                    sameDirs = []
+
+                    for d in cur:
+                        if isinstance(d, FSNoneNode):
+                            subDir = FSNoneNode(d)
+                        else:
+                            try:
+                                subDir = d.dirs[dn]
+                            except KeyError:
+                                subDir = FSNoneNode(d)
+
+                        sameDirs.append(subDir)
+
+                    newDci = self.emitDirectoryComparationInfo(sameDirs,
+                        curDci
+                    )
+                    queue.append(newDci)
+
+                    yield True
+
+            # queue files
+            fileSummary = set()
+
+            for d in cur:
+                if not isinstance(d, FSNoneNode):
+                    fileSummary.update(d.files.keys())
+
+            yield True
+
+            if fileSummary:
+                for fn in fileSummary:
+                    sameFiles = []
+                    entries = 0
+
+                    for d in cur:
+                        if isinstance(d, FSNoneNode):
+                            file = FSNoneNode(d)
+                        else:
+                            try:
+                                file = d.files[fn]
+                            except KeyError:
+                                file = FSNoneNode(d)
+                            else:
+                                entries += 1
+
+                        sameFiles.append(file)
+
+                    fci = self.emitFileComparationInfo(sameFiles, curDci)
+
+                    if entries == 1:
+                        # Only request attributes of alone file entry
+                        for oneFile in sameFiles:
+                            if not isinstance(oneFile, FSNoneNode):
+                                break
+
+                        for attr in attrs:
+                            if not attr in oneFile.__dict__:
+                                oneFile.requestAttribute(attr, coDisp)
+                    else:
+                        coDisp.enqueue(fci.coCompare(self))
+
+                    yield True
+
+    def emitDirectoryComparationInfo(self, dirs, parent = None):
+        dci = DirectoryComparationInfo(dirs, parent)
+        if parent:
+            parent.accountDCI(dci)
+        self.eCtx.notify(FSCEvent.DIR_CMP_INFO, dci)
+        return dci
+
+    def emitFileComparationInfo(self, files, parent):
+        fci = FileComparationInfo(files, parent)
+        parent.accountFCI(fci)
+        self.eCtx.notify(FSCEvent.FILE_CMP_INFO, fci)
+        return fci
 
 # Widgets
 # -------
