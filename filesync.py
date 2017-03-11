@@ -43,6 +43,9 @@ from itertools import \
 from argparse import \
     ArgumentParser
 
+from hashlib import \
+    sha1
+
 from fcntl import \
     F_SETFL, \
     fcntl
@@ -174,6 +177,8 @@ FSEvent = Enum("Events", """
     FILE_FOUND
     FILE_SIZE_GOT
     FILE_SIZE_ERROR
+    FILE_BLOCKS_GOT
+    FILE_BLOCKS_ERROR
     DIRECTORY_SCANNED
 """)
 
@@ -226,6 +231,9 @@ class FSNode(object):
         coDisp.enqueue(co)
         req.add(attr)
 
+# File CheckSum Block Size
+FCSBS = 4 << 10 # 4 KiB
+
 class FileInfo(FSNode):
     def coGetModify(self):
         p = Popen(["stat", "-c", "%y", self.ep],
@@ -262,6 +270,54 @@ class FileInfo(FSNode):
         else:
             self.size = long(p.communicate()[0])
             self.fs.eCtx.notify(FSEvent.FILE_SIZE_GOT, self)
+
+    def coGetBlocks(self):
+        while True:
+            try:
+                restFile = self.size
+            except AttributeError:
+                self.requestAttribute("size", coDisp)
+                yield Yield.LONG_WAIT
+            else:
+                break
+
+        f = openNoBlock(self.ep, "rb", FCSBS << 2)
+        yield True
+
+        blocks = []
+
+        while restFile:
+            block = b''
+            rest = min(FCSBS, restFile)
+
+            while rest:
+                readedBytes = f.read(rest)
+                readedLen = len(readedBytes)
+                block = block + readedBytes
+
+                assert readedLen <= rest
+
+                if readedLen < rest:
+                    yield False
+
+                rest -= readedLen
+
+            restFile -= len(block)
+
+            yield True
+
+            sha = sha1()
+            sha.update(block)
+            digest = sha.digest()
+            blocks.append(digest)
+
+        yield True
+        f.close()
+        yield True
+
+        self.blocks = tuple(blocks)
+
+        self.fs.eCtx.notify(FSEvent.FILE_BLOCKS_GOT, self)
 
 # Directory Items Per Yield
 DIPY = 100
