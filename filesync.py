@@ -171,6 +171,9 @@ class EventContext(object):
 # File system model
 # -----------------
 
+def newFS(rootDirectoryEffectiveName):
+    return LinuxFS(rootDirectoryEffectiveName)
+
 FSEvent = Enum("Events", """
     DIRECTORY_FOUND
     FILE_MODIFY_GOT
@@ -185,21 +188,28 @@ FSEvent = Enum("Events", """
 """)
 
 class FS(object):
-    def __init__(self, root):
-        self.root = root
+    def __init__(self):
         self.eCtx = EventContext()
+
+class LinuxFS(FS):
+    def __init__(self, effectiveRootPath):
+        super(LinuxFS, self).__init__()
+
+        self.root = DirectoryInfo(effectiveRootPath, fileSystem = self)
 
 class FileTSGettingError(Exception):
     pass
 
 class FSNode(object):
-    def __init__(self, directoryPath, directory = None):
+    def __init__(self, directoryPath, directory = None, fileSystem = None):
+        assert (directory is None) != (fileSystem is None)
+
         self.dp = directoryPath
-        if directory:
+        if directory is None:
+            self.fs = fileSystem
+        else:
             self.d = directory
             self.fs = directory.fs
-        else:
-            self.fs = FS(self)
 
         self.req = set()
 
@@ -1167,7 +1177,7 @@ class MainWindow(Tk):
         nbRoots.grid(row = 0, column = 0, sticky = "NESW")
 
         rootDirs = [
-            DirectoryInfo(rden) for rden in rootDirectoryEffectiveNames
+            newFS(rden).root for rden in rootDirectoryEffectiveNames
         ]
         ci = CmpInfo(self, rootDirs, coDisp)
         nbRoots.add(ci, text = "Overwiew")
