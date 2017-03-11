@@ -196,9 +196,6 @@ DIPY = 100
 # File CheckSum Block Size
 FCSBS = 4 << 10 # 4 KiB
 
-class FileTSGettingError(Exception):
-    pass
-
 class LinuxFS(FS):
     def __init__(self, effectiveRootPath):
         super(LinuxFS, self).__init__()
