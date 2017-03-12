@@ -67,12 +67,6 @@ def openNoBlock(*args):
 
 # Coroutine API
 # -------------
-
-class Yield(Enum):
-    WAIT = False
-    READY = True
-    LONG_WAIT = 2
-
 # Simulatenous dispatching is not allowd. Hence, current dispatcher may declare
 # itself globally.
 coDisp = None
@@ -84,7 +78,6 @@ class CoDisp(object):
         self.queue = []
         self.ready = []
         self.waiting = []
-        self.longWaiting = []
 
     def enqueue(self, co):
         self.queue.append(co)
@@ -94,7 +87,6 @@ class CoDisp(object):
         q = self.queue
         w = self.waiting
         g = self.gotten
-        lw = self.longWaiting
 
         try:
             co = r.pop(0)
@@ -106,13 +98,7 @@ class CoDisp(object):
                     try:
                         co = w.pop(0)
                     except IndexError:
-                        try:
-                            co = lw.pop(0)
-                        except IndexError:
-                            return False
-                        else:
-                            g += 1
-                            self.gotten = g
+                        return False
                 else:
                     g += 1
                     self.gotten = g
@@ -156,12 +142,6 @@ class CoDisp(object):
         if ret == True:
             r.append(co)
             return True
-
-        if ret == Yield.LONG_WAIT:
-            g -= 1
-            self.gotten = g
-            lw.append(co)
-            return bool(r or q)
 
         w.append(co)
         return bool(r or q)
