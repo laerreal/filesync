@@ -266,8 +266,7 @@ class LinuxFS(FS):
             try:
                 restFile = file.size
             except AttributeError:
-                file.requestAttribute("size", coDisp)
-                yield Yield.LONG_WAIT
+                yield file.attributeGetter("size")
             else:
                 break
 
@@ -408,8 +407,7 @@ class DirectoryInfo(FSNode):
             try:
                 dirs = self.dirs
             except AttributeError:
-                self.requestAttribute("nodes", coDisp)
-                yield Yield.LONG_WAIT
+                yield self.attributeGetter("nodes")
             else:
                 break
 
@@ -577,8 +575,7 @@ class FileComparationInfo(FSNodeComparationInfo):
                     try:
                         a1 = getattr(f1, attr)
                     except AttributeError:
-                        f1.requestAttribute(attr, coDisp)
-                        yield Yield.LONG_WAIT
+                        yield f1.attributeGetter(attr)
                     else:
                         break
 
@@ -586,8 +583,7 @@ class FileComparationInfo(FSNodeComparationInfo):
                     try:
                         a2 = getattr(f2, attr)
                     except AttributeError:
-                        f2.requestAttribute(attr, coDisp)
-                        yield Yield.LONG_WAIT
+                        yield f2.attributeGetter(attr)
                     else:
                         break
 
@@ -637,8 +633,7 @@ class RootComparationContext(object):
                         try:
                             dirs = d.dirs
                         except AttributeError:
-                            d.requestAttribute("nodes", coDisp)
-                            yield Yield.LONG_WAIT
+                            yield d.attributeGetter("nodes")
                         else:
                             break
 
