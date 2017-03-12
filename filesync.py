@@ -355,7 +355,7 @@ class FSNode(object):
             self._ep = ep
             return ep
 
-    def requestAttribute(self, attr, coDisp):
+    def attributeGetter(self, attr):
         assert attr not in self.__dict__, \
             "Attempt to request available attribute " + attr
 
@@ -363,13 +363,18 @@ class FSNode(object):
 
         if attr in req:
             # already requested
-            return
+            return None
+
+        req.add(attr)
 
         coName = "coGet" + attr.title()
         coFn = getattr(self.fs, coName)
-        co = coFn(self)
-        coDisp.enqueue(co)
-        req.add(attr)
+        return coFn(self)
+
+    def requestAttribute(self, attr, coDisp):
+        co = self.attributeGetter(attr)
+        if co:
+            coDisp.enqueue(co)
 
 class FileInfo(FSNode):
     pass
