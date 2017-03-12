@@ -1222,12 +1222,11 @@ class MainWindow(Tk):
             i -= 1
 
         l = self.statusBar
-        l.config(text = "Tasks: %u + %u(W) = %u | %u + %u(LW)" % (
+        l.config(text = "Tasks: %u + %u(W) = %u | %u" % (
             len(coDisp.ready),
             len(coDisp.waiting),
             coDisp.gotten,
-            len(coDisp.queue),
-            len(coDisp.longWaiting)
+            len(coDisp.queue)
         ))
 
     def mainloop(self):
