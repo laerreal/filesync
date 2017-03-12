@@ -339,7 +339,7 @@ class FSNode(object):
             self.d = directory
             self.fs = directory.fs
 
-        self.req = set()
+        self.req = {}
 
     @property
     def ep(self):
@@ -361,15 +361,15 @@ class FSNode(object):
 
         req = self.req
 
-        if attr in req:
-            # already requested
-            return None
+        try:
+            co = req[attr]
+        except KeyError:
+            coName = "coGet" + attr.title()
+            coFn = getattr(self.fs, coName)
+            co = coFn(self)
+            req[attr] = co
 
-        req.add(attr)
-
-        coName = "coGet" + attr.title()
-        coFn = getattr(self.fs, coName)
-        return coFn(self)
+        return co
 
     def requestAttribute(self, attr, coDisp):
         co = self.attributeGetter(attr)
