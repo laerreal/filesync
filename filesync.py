@@ -375,8 +375,8 @@ class FSNode(object):
 
     def requestAttribute(self, attr, coDisp):
         co = self.attributeGetter(attr)
-        if co:
-            coDisp.enqueue(co)
+        # TODO: Multiple queuing possible, but it is acceptable.
+        coDisp.enqueue(co)
 
 class FileInfo(FSNode):
     pass
