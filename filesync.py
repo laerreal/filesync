@@ -21,6 +21,9 @@ else:
 
 # Any python
 
+from types import \
+    GeneratorType
+
 from subprocess import \
     Popen, \
     PIPE
@@ -120,7 +123,19 @@ class CoDisp(object):
         coDisp = self
 
         try:
-            ret = next(co)
+            if isinstance(co, list):
+                subco = co.pop(0)
+                try:
+                    ret = next(subco)
+                except StopIteration:
+                    if co:
+                        ret = True
+                    else:
+                        raise StopIteration()
+                else:
+                    co.insert(0, subco)
+            else:
+                ret = next(co)
         except StopIteration:
             g -= 1
             self.gotten = g
@@ -129,6 +144,14 @@ class CoDisp(object):
             return bool(r or q)
         else:
             coDisp = None
+
+        if isinstance(ret, GeneratorType):
+            if isinstance(co, list):
+                co.insert(0, ret)
+            else:
+                co = [ret, co]
+            r.append(co)
+            return True
 
         if ret == True:
             r.append(co)
