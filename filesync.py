@@ -78,6 +78,7 @@ class CoDisp(object):
         self.queue = []
         self.ready = []
         self.waiting = []
+        self.references = {}
 
     def enqueue(self, co):
         self.queue.append(co)
@@ -87,6 +88,7 @@ class CoDisp(object):
         q = self.queue
         w = self.waiting
         g = self.gotten
+        refs = self.references
 
         try:
             co = r.pop(0)
@@ -109,37 +111,37 @@ class CoDisp(object):
         coDisp = self
 
         try:
-            if isinstance(co, list):
-                subco = co.pop(0)
-                try:
-                    ret = next(subco)
-                except StopIteration:
-                    if co:
-                        ret = True
-                    else:
-                        raise StopIteration()
-                else:
-                    co.insert(0, subco)
-            else:
-                ret = next(co)
+            ret = next(co)
         except StopIteration:
-            g -= 1
-            self.gotten = g
-
             coDisp = None
-            return bool(r or q)
+
+            try:
+                coRefs = refs[co]
+            except KeyError:
+                g -= 1
+                self.gotten = g
+                return bool(r or q)
+
+            ref = coRefs.pop(0)
+            if not coRefs:
+                del refs[co]
+
+            r.append(ref)
+            return True
         else:
             coDisp = None
 
         if isinstance(ret, GeneratorType):
-            if isinstance(co, list):
-                co.insert(0, ret)
+            try:
+                coRefs = refs[ret]
+            except KeyError:
+                refs[ret] = [co]
             else:
-                co = [ret, co]
-            r.append(co)
-            return True
+                coRefs.append(co)
 
-        if ret == True:
+            r.append(ret)
+            return True
+        elif ret:
             r.append(co)
             return True
 
