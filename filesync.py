@@ -1195,7 +1195,7 @@ class MainWindow(Tk):
             nbRoots.add(ri, text = rd.dp)
 
         self.rowconfigure(1, weight = 0)
-        self.statusBar = l = Label(self)
+        self.statusBar = l = Label(self, font = ("Monospace", 8))
         l.grid(row = 1, column = 0,
             columns = 1, # all
             sticky = "SW"
