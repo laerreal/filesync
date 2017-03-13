@@ -78,6 +78,7 @@ class CoDisp(object):
         self.queue = []
         self.ready = []
         self.waiting = []
+        self.callers = 0
         self.references = {}
 
     def enqueue(self, co):
@@ -122,6 +123,8 @@ class CoDisp(object):
                 self.gotten = g
                 return bool(r or q)
 
+            self.callers -= 1
+
             ref = coRefs.pop(0)
             if not coRefs:
                 del refs[co]
@@ -132,6 +135,8 @@ class CoDisp(object):
             coDisp = None
 
         if isinstance(ret, GeneratorType):
+            self.callers += 1
+
             try:
                 coRefs = refs[ret]
             except KeyError:
