@@ -1209,7 +1209,7 @@ class MainWindow(Tk):
             i -= 1
 
         l = self.statusBar
-        l.config(text = "Tasks: %u + %u(W) = %u | %u + %u (C)" % (
+        l.config(text = "Tasks: %2u + %2u (W) = %2u | %5u + %5u (C)" % (
             len(coDisp.ready),
             len(coDisp.waiting),
             coDisp.gotten,
