@@ -55,6 +55,9 @@ from fcntl import \
     F_SETFL, \
     fcntl
 
+from time import \
+    sleep
+
 # Actual program below
 # ====================
 
@@ -1216,6 +1219,9 @@ class MainWindow(Tk):
             len(coDisp.queue),
             coDisp.callers
         ))
+
+        if i > 0:
+            sleep(0.01)
 
     def mainloop(self):
         try:
