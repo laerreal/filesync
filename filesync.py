@@ -81,7 +81,7 @@ class CoDisp(object):
         self.queue = []
         self.ready = []
         self.waiting = []
-        self.callers = 0
+        self.callers = set()
         self.references = {}
 
     def enqueue(self, co):
@@ -92,6 +92,7 @@ class CoDisp(object):
         q = self.queue
         w = self.waiting
         g = self.gotten
+        c = self.callers
         refs = self.references
 
         try:
@@ -119,26 +120,31 @@ class CoDisp(object):
         except StopIteration:
             coDisp = None
 
+            g -= 1
             try:
                 coRefs = refs[co]
             except KeyError:
-                g -= 1
                 self.gotten = g
                 return bool(r or q)
-
-            self.callers -= 1
-
-            ref = coRefs.pop(0)
-            if not coRefs:
+            else:
                 del refs[co]
 
-            r.append(ref)
+            for caller in coRefs:
+                c.remove(caller)
+                if g < CO_LIMIT:
+                    g += 1
+                    r.insert(0, caller)
+                else:
+                    q.insert(0, caller)
+            self.gotten = g
+
             return True
         else:
             coDisp = None
 
         if isinstance(ret, GeneratorType):
-            self.callers += 1
+            assert co not in c
+            c.add(co)
 
             try:
                 coRefs = refs[ret]
@@ -147,8 +153,13 @@ class CoDisp(object):
             else:
                 coRefs.append(co)
 
-            r.append(ret)
-            return True
+            if ret in c:
+                g -= 1
+                self.gotten = g
+                return bool(r or q)
+            else:
+                r.append(ret)
+                return True
         elif ret:
             r.append(co)
             return True
