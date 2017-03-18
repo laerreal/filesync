@@ -1212,12 +1212,11 @@ class MainWindow(Tk):
             i -= 1
 
         l = self.statusBar
-        l.config(text = "Tasks: %2u + %2u (W) = %2u | %5u + %5u (C)" % (
+        l.config(text = "Tasks: %2u + %2u (W) = %2u | %5u" % (
             len(coDisp.ready),
             len(coDisp.waiting),
             coDisp.gotten,
-            len(coDisp.queue),
-            coDisp.callers
+            len(coDisp.queue)
         ))
 
         if i > 0:
