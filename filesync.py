@@ -1228,7 +1228,8 @@ class MainWindow(Tk):
             len(coDisp.waiting),
             coDisp.gotten,
             len(coDisp.queue)
-        ))
+        ) + " + %5u (C)" % len(coDisp.callers)
+        )
 
         if i > 0:
             sleep(0.01)
