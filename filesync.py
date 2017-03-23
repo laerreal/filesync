@@ -218,6 +218,25 @@ class Stateful():
         klass.state = property(get_state, set_state)
         return klass
 
+def bytes2int(bytes):
+    result = 0
+
+    for b in bytes:
+        result = result * 256 + int(b)
+
+    return result
+
+def int2bytes(value, length):
+    result = []
+
+    for i in range(0, length):
+        result.append(value >> (i * 8) & 0xff)
+
+    result.reverse()
+    result = bytes(result)
+
+    return result
+
 # File system model
 # -----------------
 
