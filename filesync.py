@@ -169,7 +169,6 @@ class CoDisp(object):
 
 class EventContext(object):
     # TODO: turn events to coroutine-based signals
-    # TODO: add listener removing method
     def __init__(self):
         self.listeners = {}
 
@@ -191,6 +190,13 @@ class EventContext(object):
                 allLs[e] = ls = set()
 
             ls.add(cb)
+
+    def forget(self, cb, *events):
+        allLs = self.listeners
+
+        for e in events:
+            ls = allLs[e]
+            ls.remove(cb)
 
 # File system model
 # -----------------
