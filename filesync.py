@@ -577,7 +577,6 @@ in '%s'" % (name, n.ep)
                     sock.close()
                 except:
                     pass
-                del self.server.clients[sock]
                 self.socketError()
                 break
 
@@ -587,7 +586,6 @@ in '%s'" % (name, n.ep)
             chunk = sock.recv(min(CHUNK_SIZE, inMsg.rest))
             if chunk == b"":
                 print("Disconnected.") # net-0
-                del self.server.clients[sock]
                 self.disconnected()
                 break
 
@@ -618,7 +616,6 @@ in '%s'" % (name, n.ep)
                     sock.close()
                 except:
                     pass
-                del self.server.clients[sock]
                 self.socketError()
                 break
 
@@ -666,8 +663,6 @@ class FSServer(object):
 
         print(" OK") # net-0
 
-        self.clients = {}
-
         # Listening Socket
         self.ls = s
         self.coDisp.enqueue(self.coAccept())
@@ -695,7 +690,6 @@ class FSServer(object):
 
                 clientSocket.setblocking(0)
                 cl = ClientInfo(self, clientSocket)
-                self.clients[clientSocket] = cl
                 coDisp.enqueue(cl.coReceiver())
                 coDisp.enqueue(cl.coSender())
                 yield True
