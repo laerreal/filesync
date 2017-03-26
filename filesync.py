@@ -191,14 +191,145 @@ class FS(object):
     def __init__(self):
         self.eCtx = EventContext()
 
+# Directory Items Per Yield
+DIPY = 100
+# File CheckSum Block Size
+FCSBS = 4 << 10 # 4 KiB
+
+class FileTSGettingError(Exception):
+    pass
+
 class LinuxFS(FS):
     def __init__(self, effectiveRootPath):
         super(LinuxFS, self).__init__()
 
         self.root = DirectoryInfo(effectiveRootPath, fileSystem = self)
 
-class FileTSGettingError(Exception):
-    pass
+    def coGetModify(self, file):
+        p = Popen(["stat", "-c", "%y", file.ep],
+            stdout = PIPE,
+            stderr = PIPE
+        )
+
+        while p.poll() is None:
+            yield False
+
+        if p.returncode != 0:
+            self.eCtx.notify(FSEvent.FILE_MODIFY_ERROR, file,
+                returncode = p.returncode,
+                popen = p
+            )
+        else:
+            file.modify = p.communicate()[0].decode("utf-8").strip()
+            self.eCtx.notify(FSEvent.FILE_MODIFY_GOT, file)
+
+    def coGetSize(self, file):
+        p = Popen(["stat", "-c", "%s", file.ep],
+            stdout = PIPE,
+            stderr = PIPE
+        )
+
+        while p.poll() is None:
+            yield False
+
+        if p.returncode != 0:
+            self.eCtx.notify(FSEvent.FILE_SIZE_ERROR, file,
+                returncode = p.returncode,
+                popen = p
+            )
+        else:
+            file.size = long(p.communicate()[0])
+            self.eCtx.notify(FSEvent.FILE_SIZE_GOT, file)
+
+    def coGetBlocks(self, file):
+        while True:
+            try:
+                restFile = file.size
+            except AttributeError:
+                file.requestAttribute("size", coDisp)
+                yield Yield.LONG_WAIT
+            else:
+                break
+
+        f = openNoBlock(file.ep, "rb", FCSBS << 2)
+        yield True
+
+        blocks = []
+
+        while restFile:
+            block = b''
+            rest = min(FCSBS, restFile)
+
+            while rest:
+                readedBytes = f.read(rest)
+                readedLen = len(readedBytes)
+                block = block + readedBytes
+
+                assert readedLen <= rest
+
+                if readedLen < rest:
+                    yield False
+
+                rest -= readedLen
+
+            restFile -= len(block)
+
+            yield True
+
+            sha = sha1()
+            sha.update(block)
+            digest = sha.digest()
+            blocks.append(digest)
+
+        yield True
+        f.close()
+        yield True
+
+        file.blocks = tuple(blocks)
+
+        self.eCtx.notify(FSEvent.FILE_BLOCKS_GOT, file)
+
+    def coGetNodes(self, directory):
+        # node pathes
+        nps = listdir(directory.ep)
+
+        yield True
+
+        files = {}
+        dirs = {}
+        nodes = {}
+        skipped = 0
+
+        y = DIPY
+        for np in nps:
+            if y <= 0:
+                yield True
+                y = DIPY
+            else:
+                y -= 1
+
+            ep = join(directory.ep, np)
+            if isdir(ep):
+                n = DirectoryInfo(np, directory = directory)
+                dirs[np] = n
+                self.eCtx.notify(FSEvent.DIRECTORY_FOUND, n)
+            elif isfile(ep):
+                n = FileInfo(np, directory = directory)
+                files[np] = n
+                self.eCtx.notify(FSEvent.FILE_FOUND, n)
+            else:
+                self.eCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, directory,
+                    path = np
+                )
+                skipped += 1
+                continue
+
+            n._ep = ep
+            nodes[np] = n
+
+        directory.files, directory.dirs, directory.nodes = files, dirs, nodes
+        directory.skipped = skipped
+        self.eCtx.notify(FSEvent.DIRECTORY_SCANNED, directory)
 
 class FSNode(object):
     def __init__(self, directoryPath, directory = None, fileSystem = None):
@@ -238,145 +369,15 @@ class FSNode(object):
             return
 
         coName = "coGet" + attr.title()
-        coFn = getattr(self, coName)
-        co = coFn()
+        coFn = getattr(self.fs, coName)
+        co = coFn(self)
         coDisp.enqueue(co)
         req.add(attr)
 
-# File CheckSum Block Size
-FCSBS = 4 << 10 # 4 KiB
-
 class FileInfo(FSNode):
-    def coGetModify(self):
-        p = Popen(["stat", "-c", "%y", self.ep],
-            stdout = PIPE,
-            stderr = PIPE
-        )
-
-        while p.poll() is None:
-            yield False
-
-        if p.returncode != 0:
-            self.fs.eCtx.notify(FSEvent.FILE_MODIFY_ERROR, self,
-                returncode = p.returncode,
-                popen = p
-            )
-        else:
-            self.modify = p.communicate()[0].decode("utf-8").strip()
-            self.fs.eCtx.notify(FSEvent.FILE_MODIFY_GOT, self)
-
-    def coGetSize(self):
-        p = Popen(["stat", "-c", "%s", self.ep],
-            stdout = PIPE,
-            stderr = PIPE
-        )
-
-        while p.poll() is None:
-            yield False
-
-        if p.returncode != 0:
-            self.fs.eCtx.notify(FSEvent.FILE_SIZE_ERROR, self,
-                returncode = p.returncode,
-                popen = p
-            )
-        else:
-            self.size = long(p.communicate()[0])
-            self.fs.eCtx.notify(FSEvent.FILE_SIZE_GOT, self)
-
-    def coGetBlocks(self):
-        while True:
-            try:
-                restFile = self.size
-            except AttributeError:
-                self.requestAttribute("size", coDisp)
-                yield Yield.LONG_WAIT
-            else:
-                break
-
-        f = openNoBlock(self.ep, "rb", FCSBS << 2)
-        yield True
-
-        blocks = []
-
-        while restFile:
-            block = b''
-            rest = min(FCSBS, restFile)
-
-            while rest:
-                readedBytes = f.read(rest)
-                readedLen = len(readedBytes)
-                block = block + readedBytes
-
-                assert readedLen <= rest
-
-                if readedLen < rest:
-                    yield False
-
-                rest -= readedLen
-
-            restFile -= len(block)
-
-            yield True
-
-            sha = sha1()
-            sha.update(block)
-            digest = sha.digest()
-            blocks.append(digest)
-
-        yield True
-        f.close()
-        yield True
-
-        self.blocks = tuple(blocks)
-
-        self.fs.eCtx.notify(FSEvent.FILE_BLOCKS_GOT, self)
-
-# Directory Items Per Yield
-DIPY = 100
+    pass
 
 class DirectoryInfo(FSNode):
-    def coGetNodes(self):
-        # node pathes
-        nps = listdir(self.ep)
-
-        yield True
-
-        files = {}
-        dirs = {}
-        nodes = {}
-        skipped = 0
-
-        y = DIPY
-        for np in nps:
-            if y <= 0:
-                yield True
-                y = DIPY
-            else:
-                y -= 1
-
-            ep = join(self.ep, np)
-            if isdir(ep):
-                n = DirectoryInfo(np, directory = self)
-                dirs[np] = n
-                self.fs.eCtx.notify(FSEvent.DIRECTORY_FOUND, n)
-            elif isfile(ep):
-                n = FileInfo(np, directory = self)
-                files[np] = n
-                self.fs.eCtx.notify(FSEvent.FILE_FOUND, n)
-            else:
-                self.fs.eCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, self,
-                    path = np
-                )
-                skipped += 1
-                continue
-
-            n._ep = ep
-            nodes[np] = n
-
-        self.files, self.dirs, self.nodes = files, dirs, nodes
-        self.skipped = skipped
-        self.fs.eCtx.notify(FSEvent.DIRECTORY_SCANNED, self)
-
     def coRecursiveReading(self):
         while True:
             try:
