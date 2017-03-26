@@ -115,6 +115,10 @@ class CoDisp(object):
         self.socketsToWrite = {}
         self.readySockets = []
 
+    def wake(self, co):
+        self.waiting.remove(co)
+        self.ready.append(co)
+
     def enqueue(self, co):
         self.queue.append(co)
 
