@@ -278,6 +278,7 @@ class LinuxFS(FS):
         super(LinuxFS, self).__init__()
 
         self.root = DirectoryInfo(effectiveRootPath, fileSystem = self)
+        self.sep = "/"
 
     def coGetModify(self, file):
         p = Popen(["stat", "-c", "%y", file.ep],
