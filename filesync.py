@@ -964,6 +964,8 @@ class CmpResTree(Treeview):
             nextDP = []
 
             prefix, curSfx = split(allDP[0])
+            if not curSfx:
+                break
             if prefix:
                 nextDP.append(prefix)
 
