@@ -690,7 +690,19 @@ class FSServer(object):
 # -----------------
 
 def newFS(rootDirectoryEffectiveName):
-    return LinuxFS(rootDirectoryEffectiveName)
+    pieces = rootDirectoryEffectiveName.split("::")
+    if len(pieces) <= 1:
+        return LinuxFS(rootDirectoryEffectiveName)
+    else:
+        remote = pieces.pop(0)
+        try:
+            (remoteAddress, remotePort) = remote.split(":")
+        except ValueError:
+            remoteAddress = remote
+            remotePort = DEFAULT_PORT
+        else:
+            remotePort = int(remotePort, 0)
+        return RemoteFS(remoteAddress, remotePort, "::".join(pieces))
 
 FSEvent = Enum("Events", """
     DIRECTORY_FOUND
