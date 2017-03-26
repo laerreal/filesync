@@ -937,20 +937,13 @@ class RemoteFS(FS):
                 outMsg.chunk = chunk[sent:]
                 outMsg.rest = rest - sent
 
-    def coPoll(self):
-        coDisp.enqueue(self.coSender())
-
+    def coReceiver(self):
         clientSocket = self.clientSocket
-        rs = errs = [clientSocket]
         inMsg = None
         eCtx = self.eCtx
 
         while True:
-            rtr, rtw, err = select(rs, [], errs, 0)
-
-            if not (rtr or rtw or err):
-                yield False
-                continue
+            err = (yield (clientSocket, False))
 
             if err:
                 print("Client socked error.") # net-0
@@ -960,37 +953,41 @@ class RemoteFS(FS):
                     pass
                 break
 
-            if rtr:
-                yield True
+            if not inMsg:
+                inMsg = Message()
 
-                if not inMsg:
-                    inMsg = Message()
-
+            try:
+                chunk = clientSocket.recv(min(CHUNK_SIZE, inMsg.rest))
+            except ConnectionRefusedError:
+                print("Connection refused.") # net-0
                 try:
-                    chunk = clientSocket.recv(min(CHUNK_SIZE, inMsg.rest))
-                except ConnectionRefusedError:
-                    print("Connection refused.") # net-0
-                    try:
-                        clientSocket.close()
-                    except:
-                        pass
-                    break
+                    clientSocket.close()
+                except:
+                    pass
+                break
 
-                if chunk == b"":
-                    print("Server disconnected.") # net-0
-                    try:
-                        clientSocket.close()
-                    except:
-                        pass
-                    break
-                else:
-                    inMsg.append(chunk)
+            if chunk == b"":
+                print("Server disconnected.") # net-0
+                try:
+                    clientSocket.close()
+                except:
+                    pass
+                break
+            else:
+                inMsg.append(chunk)
 
-                    # print(inMsg) # net-1
+                # print(inMsg) # net-1
 
-                    if not inMsg.rest:
-                        eCtx.notify(RFSEvent.INCOMMING_MESSAGE, inMsg)
-                        inMsg = None
+                if not inMsg.rest:
+                    eCtx.notify(RFSEvent.INCOMMING_MESSAGE, inMsg)
+                    inMsg = None
+
+    def coPoll(self):
+        coDisp.enqueue(self.coSender())
+        coDisp.enqueue(self.coReceiver())
+
+        while True:
+            yield False
 
     def coGetAttr(self, node, Attr):
         ep = node.ep
