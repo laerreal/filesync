@@ -683,8 +683,6 @@ class FSServer(object):
 
             rs, ws, errs = [], [], []
             for s, c in clients.items():
-                rs.append(s)
-                errs.append(s)
                 if c.outMsg:
                     ws.append(s)
                 else:
