@@ -1,5 +1,13 @@
 #!/usr/bin/python
 
+"""
+Debug messages switching:
+
+Find                    : (# )?(print[^#]+\) *#.*)
+To turn on replace with : \2
+To turn off replace with: # \2
+"""
+
 # imports below
 
 TK_IMPORT = "Tk, TclError, Label, Frame"
