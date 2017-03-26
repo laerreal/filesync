@@ -780,9 +780,10 @@ RFSEvent = Enum("RemoteFSEvents", """
 """)
 
 class RemoteNodesReceiver():
-    def __init__(self, directory, fs):
+    def __init__(self, directory, fs, disp):
         self.node = directory
         self.fs = fs
+        self.disp = disp
         self.finished = False
         self.total = None
         self.skipped = None
@@ -823,6 +824,7 @@ class RemoteNodesReceiver():
             self.files, self.dirs, nodes, skipped
 
         self.finished = True
+        self.disp.wake(self.co)
 
         self.fs.eCtx.notify(FSEvent.DIRECTORY_SCANNED, node)
 
@@ -853,9 +855,10 @@ class RemoteNodesReceiver():
         # print("Directory %s gotten" % d.dp) # net-1
 
 class RemoteAttrReceiver():
-    def __init__(self, node, fs):
+    def __init__(self, node, fs, disp):
         self.node = node
         self.fs = fs
+        self.disp = disp
         self.finished = False
 
     def onIncommingMessage(self, event, msg):
@@ -880,6 +883,7 @@ class RemoteAttrReceiver():
         setattr(node, attr, data)
 
         self.finished = True
+        self.disp.wake(self.co)
 
         self.fs.eCtx.notify(
             FSEvent["FILE_" + ATTR + "_GOT"], node
@@ -999,16 +1003,20 @@ class RemoteFS(FS):
         eCtx = self.eCtx
 
         if Attr == "Nodes":
-            receiver = RemoteNodesReceiver(node, self)
+            receiver = RemoteNodesReceiver(node, self, coDisp)
         else:
-            receiver = RemoteAttrReceiver(node, self)
+            receiver = RemoteAttrReceiver(node, self, coDisp)
 
         eCtx.listen(receiver.onIncommingMessage,
             RFSEvent.INCOMMING_MESSAGE
         )
 
-        while not receiver.finished:
-            yield False
+        def co(receiver = receiver):
+            while not receiver.finished:
+                yield False
+
+        receiver.co = co = co()
+        yield co
 
         eCtx.forget(receiver.onIncommingMessage, RFSEvent.INCOMMING_MESSAGE)
 
