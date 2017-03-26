@@ -564,6 +564,41 @@ in '%s'" % (name, n.ep)
         handler = decode_str(inMsg._type)
         getattr(self, "handle_" + handler + "_")(inMsg.content)
 
+    def coReceiver(self):
+        sock = self.sock
+        inMsg = None
+
+        while True:
+            err = (yield (sock, False))
+
+            if err:
+                print("Client socket error raised during select.") # net-0
+                try:
+                    sock.close()
+                except:
+                    pass
+                del self.server.clients[sock]
+                self.socketError()
+                break
+
+            if not inMsg:
+                inMsg = Message()
+
+            chunk = sock.recv(min(CHUNK_SIZE, inMsg.rest))
+            if chunk == b"":
+                print("Disconnected.") # net-0
+                del self.server.clients[sock]
+                self.disconnected()
+                break
+
+            inMsg.append(chunk)
+
+            # print(inMsg) # net-1
+
+            if not inMsg.rest:
+                self.onMessage(inMsg)
+                inMsg = None
+
 class FSServer(object):
     def __init__(self, port = DEFAULT_PORT):
         self.port = port
