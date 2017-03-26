@@ -765,7 +765,7 @@ class FSServer(object):
                 chunk = outMsg.chunk
                 sent = w.send(chunk[:toSend])
                 if sent == 0:
-                    print("Sent returned 0.") # net-0
+                    print("Send returned 0.") # net-0
                     continue
 
                 if sent == outMsg.rest:
