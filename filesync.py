@@ -2077,7 +2077,8 @@ class MainWindow(Tk):
         )
 
         if i > 0:
-            sleep(0.01)
+            if not coDisp.select(0.01):
+                sleep(0.01)
 
     def mainloop(self):
         try:
