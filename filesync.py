@@ -1996,14 +1996,21 @@ if __name__ == "__main__":
         metavar = "D",
         type = str,
         nargs = "*",
-        help = "A root directory to syncronize",
-        default = "."
+        help = "A root directory to syncronize"
     )
 
     args = ap.parse_args()
 
-    root = MainWindow(args.roots)
-    root.title(ap.description)
-    root.geometry("1024x760")
-    root.mainloop()
-
+    roots = args.roots
+    if roots:
+        root = MainWindow(args.roots)
+        root.title(ap.description)
+        root.geometry("1024x760")
+        root.mainloop()
+    else:
+        srv = FSServer()
+        srv.start()
+        disp = srv.coDisp
+        while True:
+            if not disp.iterate():
+                sleep(0.01)
