@@ -671,7 +671,6 @@ class FSServer(object):
         # Listening Socket
         self.ls = s
         self.coDisp.enqueue(self.coAccept())
-        self.coDisp.enqueue(self.coCommunicate())
 
     def coAccept(self):
         while True:
