@@ -277,6 +277,9 @@ class LinuxFS(FS):
     def __init__(self, effectiveRootPath):
         super(LinuxFS, self).__init__()
 
+        while effectiveRootPath[-1] == "/":
+            effectiveRootPath = effectiveRootPath[:-1]
+
         self.root = DirectoryInfo(effectiveRootPath, fileSystem = self)
         self.sep = "/"
 
