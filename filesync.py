@@ -661,6 +661,7 @@ class FSServer(object):
                 clientSocket.setblocking(0)
                 cl = ClientInfo(self, clientSocket)
                 self.clients[clientSocket] = cl
+                coDisp.enqueue(cl.coReceiver())
                 yield True
             else:
                 yield False
