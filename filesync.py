@@ -2097,4 +2097,5 @@ if __name__ == "__main__":
         disp = srv.coDisp
         while True:
             if not disp.iterate():
-                sleep(0.01)
+                if not disp.select(0.01):
+                    sleep(0.01)
