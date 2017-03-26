@@ -111,9 +111,41 @@ class CoDisp(object):
         self.waiting = []
         self.callers = set()
         self.references = {}
+        self.socketsToRead = {}
+        self.socketsToWrite = {}
+        self.readySockets = []
 
     def enqueue(self, co):
         self.queue.append(co)
+
+    def select(self, timeout):
+        s2r = self.socketsToRead
+        s2w = self.socketsToWrite
+        rs = self.readySockets
+
+        if not (s2r or s2w):
+            return False
+
+        # Readt To Read(Write)
+        r2r, r2w = select(s2r.keys(), s2w.keys(), [], timeout)[:2]
+
+        for r in r2r:
+            rs.append((s2r.pop(r), False))
+
+        for w in r2w:
+            rs.append((s2w.pop(w), False))
+
+        if s2r:
+            exceptions = select([], [], s2r.keys(), 0)[2]
+            for r in exceptions:
+                rs.append((s2r.pop(r), True))
+
+        if s2w:
+            exceptions = select([], [], s2w.keys(), 0)[2]
+            for w in exceptions:
+                rs.append((s2w.pop(w), True))
+
+        return True
 
     def iterate(self):
         r = self.ready
@@ -122,29 +154,39 @@ class CoDisp(object):
         g = self.gotten
         c = self.callers
         refs = self.references
+        s2r = self.socketsToRead
+        s2w = self.socketsToWrite
+        rs = self.readySockets
 
+        sockErr = None
         try:
             co = r.pop(0)
         except IndexError:
-            if g < CO_LIMIT:
-                try:
-                    co = q.pop(0)
-                except IndexError:
+            try:
+                co, sockErr = rs.pop(0)
+            except IndexError:
+                if g < CO_LIMIT:
                     try:
-                        co = w.pop(0)
+                        co = q.pop(0)
                     except IndexError:
-                        return False
+                        try:
+                            co = w.pop(0)
+                        except IndexError:
+                            return False
+                    else:
+                        g += 1
+                        self.gotten = g
                 else:
-                    g += 1
-                    self.gotten = g
-            else:
-                co = w.pop(0)
+                    co = w.pop(0)
 
         global coDisp
         coDisp = self
 
         try:
-            ret = next(co)
+            if sockErr is None:
+                ret = next(co)
+            else:
+                ret = co.send(sockErr)
         except StopIteration:
             coDisp = None
 
@@ -188,6 +230,14 @@ class CoDisp(object):
             else:
                 r.append(ret)
                 return True
+        elif isinstance(ret, tuple):
+            sock = ret[0]
+            waitList = s2w if ret[1] else s2r
+
+            assert sock not in waitList
+            waitList[sock] = co
+
+            return bool(r or rs or (q and (g < CO_LIMIT)))
         elif ret:
             r.append(co)
             return True
