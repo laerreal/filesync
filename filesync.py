@@ -899,6 +899,44 @@ class RemoteFS(FS):
 
         self.poll = self.coPoll()
 
+    def coSender(self):
+        clientSocket = self.clientSocket
+        outMsgs = self.outMsgs
+        outMsg = None
+
+        while True:
+            if not outMsg:
+                while not outMsgs:
+                    yield False
+
+                outMsg = outMsgs.pop(0)
+
+            err = (yield (clientSocket, True))
+
+            if err:
+                print("Client socked error. Sender out.") # net-0
+                try:
+                    clientSocket.close()
+                except:
+                    pass
+                break
+
+            # print(outMsg) # net-1
+
+            rest = outMsg.rest
+            toSend = min(CHUNK_SIZE, rest)
+            chunk = outMsg.chunk
+            sent = clientSocket.send(chunk[:toSend])
+
+            if sent == 0:
+                print("Send returned 0. Sender out.") # net-0
+                break
+            elif sent == outMsg.rest:
+                outMsg = None
+            else:
+                outMsg.chunk = chunk[sent:]
+                outMsg.rest = rest - sent
+
     def coPoll(self):
         clientSocket = self.clientSocket
         rs = errs = [clientSocket]
