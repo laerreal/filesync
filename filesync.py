@@ -938,24 +938,15 @@ class RemoteFS(FS):
                 outMsg.rest = rest - sent
 
     def coPoll(self):
+        coDisp.enqueue(self.coSender())
+
         clientSocket = self.clientSocket
         rs = errs = [clientSocket]
-        outMsgs = self.outMsgs
-        outMsg = None
         inMsg = None
         eCtx = self.eCtx
 
         while True:
-            if not outMsg and outMsgs:
-                outMsg = outMsgs.pop(0)
-
-                # print(outMsg) # net-1
-
-                ws = [clientSocket]
-            else:
-                ws = []
-
-            rtr, rtw, err = select(rs, ws, errs, 0)
+            rtr, rtw, err = select(rs, [], errs, 0)
 
             if not (rtr or rtw or err):
                 yield False
@@ -1000,22 +991,6 @@ class RemoteFS(FS):
                     if not inMsg.rest:
                         eCtx.notify(RFSEvent.INCOMMING_MESSAGE, inMsg)
                         inMsg = None
-
-            if rtw:
-                yield True
-
-                rest = outMsg.rest
-                toSend = min(CHUNK_SIZE, rest)
-                chunk = outMsg.chunk
-                sent = clientSocket.send(chunk[:toSend])
-
-                if sent == 0:
-                    print("Send returned 0.")
-                elif sent == outMsg.rest:
-                    outMsg = None
-                else:
-                    outMsg.chunk = chunk[sent:]
-                    outMsg.rest = rest - sent
 
     def coGetAttr(self, node, Attr):
         ep = node.ep
