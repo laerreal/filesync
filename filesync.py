@@ -599,6 +599,42 @@ in '%s'" % (name, n.ep)
                 self.onMessage(inMsg)
                 inMsg = None
 
+    def coSender(self):
+        sock = self.sock
+        outMsg = None
+        outMsgs = self.output
+
+        while True:
+            if not outMsg:
+                while not outMsgs:
+                    yield False
+                outMsg = outMsgs.pop(0)
+
+            err = (yield (sock, True))
+
+            if err:
+                print("Client socket error raised during select.") # net-0
+                try:
+                    sock.close()
+                except:
+                    pass
+                del self.server.clients[sock]
+                self.socketError()
+                break
+
+            rest = outMsg.rest
+            toSend = min(CHUNK_SIZE, rest)
+            chunk = outMsg.chunk
+            sent = sock.send(chunk[:toSend])
+
+            if sent == 0:
+                print("Send returned 0.") # net-0
+            elif sent == outMsg.rest:
+                outMsg = None
+            else:
+                outMsg.chunk = chunk[sent:]
+                outMsg.rest = rest - sent
+
 class FSServer(object):
     def __init__(self, port = DEFAULT_PORT):
         self.port = port
