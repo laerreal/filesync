@@ -153,7 +153,7 @@ class CoDisp(object):
                 coRefs = refs[co]
             except KeyError:
                 self.gotten = g
-                return bool(r or q)
+                return bool(r or rs or (q and (g < CO_LIMIT)))
             else:
                 del refs[co]
 
@@ -193,7 +193,7 @@ class CoDisp(object):
             return True
 
         w.append(co)
-        return bool(r or q)
+        return bool(r or rs or (q and (g < CO_LIMIT)))
 
 class EventContext(object):
     # TODO: turn events to coroutine-based signals
