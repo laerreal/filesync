@@ -439,7 +439,6 @@ CHUNK_SIZE = 4096
 class ClientInfo(object):
     def __init__(self, server, sock):
         self.server = server
-        self.inMsg = None
         self.sock = sock
         self.output = []
         self.outMsg = None
@@ -560,7 +559,6 @@ in '%s'" % (name, n.ep)
             self.server.coDisp.enqueue(self.coGet(attr, ep))
 
     def onMessage(self, inMsg):
-        self.inMsg = None
         handler = decode_str(inMsg._type)
         getattr(self, "handle_" + handler + "_")(inMsg.content)
 
