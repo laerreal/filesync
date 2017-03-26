@@ -897,7 +897,7 @@ class RemoteFS(FS):
 
         self.outMsgs = [AuthMessage(), FSMessage(rootDirectoryEffectiveName)]
 
-        self.poll = self.coPoll()
+        self.started = False
 
     def coSender(self):
         clientSocket = self.clientSocket
@@ -982,14 +982,12 @@ class RemoteFS(FS):
                     eCtx.notify(RFSEvent.INCOMMING_MESSAGE, inMsg)
                     inMsg = None
 
-    def coPoll(self):
-        coDisp.enqueue(self.coSender())
-        coDisp.enqueue(self.coReceiver())
-
-        while True:
-            yield False
-
     def coGetAttr(self, node, Attr):
+        if not self.started:
+            coDisp.enqueue(self.coSender())
+            coDisp.enqueue(self.coReceiver())
+            self.started = True
+
         ep = node.ep
         reqMsg = GetAttrMessage(ep, Attr)
         self.outMsgs.append(reqMsg)
@@ -1006,10 +1004,7 @@ class RemoteFS(FS):
         )
 
         while not receiver.finished:
-            try:
-                yield next(self.poll)
-            except StopIteration:
-                raise RuntimeError("Polling ended!")
+            yield False
 
         eCtx.forget(receiver.onIncommingMessage, RFSEvent.INCOMMING_MESSAGE)
 
