@@ -22,10 +22,20 @@ if version_info > (3,):
     long = int
     exec("from tkinter import " + TK_IMPORT)
     exec("from tkinter.ttk import " + TTK_IMPORT)
+
+    def decode_str(bytes):
+        return bytes.decode("utf-8")
+
+    from pickle import loads, dumps
 else:
     # Python 2
     exec("from Tkinter import " + TK_IMPORT)
     exec("from ttk import " + TTK_IMPORT)
+
+    def decode_str(bytes):
+        return str(bytes)
+
+    from cPickle import loads, dumps
 
 # Any python
 
@@ -62,6 +72,16 @@ from hashlib import \
 from fcntl import \
     F_SETFL, \
     fcntl
+
+from socket import \
+    ntohl, \
+    htonl, \
+    socket, \
+    AF_INET, \
+    SOCK_STREAM
+
+from select import \
+    select
 
 from time import \
     sleep
@@ -245,6 +265,427 @@ def int2bytes(value, length):
 
     return result
 
+# Networking
+# ==========
+
+MSG_MIN_LENGTH = 16
+MSG_STR_LENGTH = 60
+
+@Stateful("append", "str")
+class Message(object):
+    def __init__(self, data = None):
+        if data is None:
+            self.chunk = b""
+            self.rest = MSG_MIN_LENGTH
+            self.state = "RecvLen"
+        else:
+            fullLength = len(data) + 4
+            extra = MSG_MIN_LENGTH - fullLength
+            if extra > 0:
+                data += b" " * extra
+                fullLength = MSG_MIN_LENGTH
+
+            self.chunk = int2bytes(htonl(fullLength), 4) + data
+
+            self.rest = fullLength
+            self.state = "Send"
+
+    def __str__(self):
+        return self.str()
+
+    def strRecvLen(self):
+        return "? >> %u [M ?]" % len(self.chunk)
+
+    def strRecvData(self):
+        chunkLength = len(self.chunk)
+        rest = self.rest
+
+        return "%u >> %u [M %u]" % (
+            rest,
+            chunkLength,
+            chunkLength + rest
+        )
+
+    def strReceived(self):
+        chunkLength = len(self.chunk)
+
+        if chunkLength > MSG_STR_LENGTH:
+            return "[M %u] %s..." % (
+                chunkLength,
+                str(self.chunk[4:MSG_STR_LENGTH])
+            )
+        else:
+            return "[M %u] %s" % (
+                chunkLength,
+                str(self.chunk[4:])
+            )
+
+    def strSend(self):
+        return "<< %u [M]" % len(self.chunk)
+
+    def appendCommon(self, ch):
+        self.rest -= len(ch)
+        ch = self.chunk + ch
+        self.chunk = ch
+
+    def appendRecvLen(self, ch):
+        self.appendCommon(ch)
+        if len(ch) >= 4:
+            fullLength = ntohl(bytes2int(ch[:4]))
+            rest = self.rest + fullLength - MSG_MIN_LENGTH
+            if rest > 0:
+                self.state = "RecvData"
+            else:
+                self.state = "Received"
+                self.finalize()
+            self.rest = rest
+
+    def appendRecvData(self, ch):
+        self.appendCommon(ch)
+        if self.rest == 0:
+            self.state = "Received"
+            self.finalize()
+
+    def finalize(self):
+        raw = self.chunk[4:]
+        self._type, self.content = raw.split(b"(", 1)
+
+    def appendSend(self, ch):
+        raise RuntimeError("Cannot append chunk during sending.")
+
+class AuthMessage(Message):
+    def __init__(self):
+        super(AuthMessage, self).__init__(b"auth(")
+
+class FSMessage(Message):
+    def __init__(self, rootDirectoryEffectiveName):
+        msg = "FS(" + rootDirectoryEffectiveName
+        super(FSMessage, self).__init__(msg.encode("utf-8"))
+
+class GetAttrMessage(Message):
+    def __init__(self, effectivePath, Attr):
+        msg = "get(" + Attr + "(" + effectivePath
+        super(GetAttrMessage, self).__init__(msg.encode("utf-8"))
+
+class RetAttrMessage(Message):
+    def __init__(self, effectivePath, Attr, value):
+        msg = "ret(" + Attr + "(" + effectivePath
+        super(RetAttrMessage, self).__init__(
+            msg.encode("utf-8") + bytes(1) + value
+        )
+
+DEFAULT_PORT = 6655
+CHUNK_SIZE = 4096
+
+@Stateful(
+    "handle_auth_",
+    "handle_FS_",
+    "handle_get_"
+)
+class ClientInfo(object):
+    def __init__(self, server):
+        self.server = server
+        self.inMsg = None
+        self.output = []
+        self.outMsg = None
+        self.state = "Auth"
+
+    def disconnected(self):
+        pass
+
+    def socketError(self):
+        pass
+
+    # node is list used to return value from coroutine
+    def coLookUpNode(self, effectivePath, node):
+        # look up node by effective path
+        fs = self.fs
+        root = fs.root
+        sep = fs.sep
+        rootDP, rp = effectivePath[:len(root.dp)], \
+                     effectivePath[len(root.dp) + len(sep):]
+
+        if rootDP != root.dp:
+            raise RuntimeError("Client requested other root: %s" % rootDP)
+
+        n = root
+        if rp:
+            for name in rp.split(sep):
+                try:
+                    nodes = n.nodes
+                except AttributeError:
+                    yield n.attributeGetter("nodes")
+                    nodes = n.nodes
+
+                try:
+                    n = nodes[name]
+                except KeyError:
+                    raise RuntimeError("Client requested unexisting node '%s' \
+in '%s'" % (name, n.ep)
+                    )
+
+        node.append(n)
+
+    # Auth state
+    def handle_auth_Auth(self, content):
+        print("Authenticated") # net-0
+        self.state = "FS"
+
+    # FS state
+    def handle_FS_FS(self, content):
+        effectiveRootName = content.decode("utf-8")
+        print("Preparing file system: " + effectiveRootName + " ... ", end="") # net-0
+        self.fs = self.server.getFS(effectiveRootName)
+        print("OK") # net-0
+        self.state = "Work"
+
+    # Work state function
+
+    # ep -  Effective Path
+    # TODO: use relative path
+    def coGet(self, Attr, ep):
+        node = []
+        yield self.coLookUpNode(ep, node)
+        n = node[0]
+
+        # get requested attribute
+        attr = Attr.lower()
+        try:
+            val = getattr(n, attr)
+        except AttributeError:
+            yield n.attributeGetter(attr)
+            val = getattr(n, attr)
+
+        val = dumps(val)
+
+        self.output.append(RetAttrMessage(ep, Attr, val))
+
+    def coGetNodes(self, ep):
+        node = []
+        yield self.coLookUpNode(ep, node)
+        n = node[0]
+
+        # get requested attribute
+        try: (n.nodes)
+        except AttributeError: yield n.attributeGetter("nodes")
+
+        files = n.files
+        dirs = n.dirs
+        skipped = n.skipped
+
+        total = skipped + len(files) + len(dirs)
+
+        # print("Begin sending of nodes of '%s' to client" % n.ep) # net-1
+
+        output = self.output
+
+        output.extend([
+            RetAttrMessage(ep, "Nodes", str(total).encode("utf-8")),
+            RetAttrMessage(ep, "Skipped", str(skipped).encode("utf-8")),
+        ])
+
+        output.extend(RetAttrMessage(ep, "File", f.dp.encode("utf-8")) \
+            for f in files.values()
+        )
+
+        output.extend(RetAttrMessage(ep, "Dir", d.dp.encode("utf-8")) \
+            for d in dirs.values()
+        )
+
+
+    def handle_get_Work(self, content):
+        attr, ep = content.split(b"(", 1)
+        attr = decode_str(attr)
+        ep = ep.decode("utf-8")
+
+        # print("queue %s of %s" % (attr, ep)) # net-1
+        if attr == "Nodes":
+            self.server.coDisp.enqueue(self.coGetNodes(ep))
+        else:
+            self.server.coDisp.enqueue(self.coGet(attr, ep))
+
+    def onMessage(self):
+        inMsg = self.inMsg
+        self.inMsg = None
+        handler = decode_str(inMsg._type)
+        getattr(self, "handle_" + handler + "_")(inMsg.content)
+
+class FSServer(object):
+    def __init__(self, port = DEFAULT_PORT):
+        self.port = port
+        # File System Registry
+        self.fsr = {}
+        self.coDisp = CoDisp()
+
+    def getFS(self, rootDirectoryEffectiveName):
+        fsr = self.fsr
+        try:
+            return fsr[rootDirectoryEffectiveName]
+        except KeyError:
+            fs = newFS(rootDirectoryEffectiveName)
+            fsr[rootDirectoryEffectiveName] = fs
+            return fs
+
+    def start(self):
+        s = socket(AF_INET, SOCK_STREAM)
+        s.setblocking(0)
+        bindTo = ("127.0.0.1", self.port)
+
+        print("Binding to %s:%u..." % bindTo, end = "") # net-0
+
+        s.bind(bindTo)
+
+        print(" OK\nListening starting... ", end = "") # net-0
+
+        s.listen(5)
+
+        print(" OK") # net-0
+
+        self.clients = {}
+
+        # Listening Socket
+        self.ls = s
+        self.coDisp.enqueue(self.coAccept())
+        self.coDisp.enqueue(self.coCommunicate())
+
+    def coAccept(self):
+        while True:
+            ls = self.ls
+            ss = [ls]
+            # Ready To Read, Ready To Write
+            rtr, rtw, err = select(ss, [], ss, 0)
+
+            if err:
+                print("Listening socket error raised during select.") # net-0
+                del self.ls
+                try:
+                    ls.close()
+                except:
+                    pass
+                break
+
+            if rtr:
+                (clientSocket, addr) = ls.accept()
+
+                print("Incomming connection from %s:%u" % addr) # net-0
+
+                clientSocket.setblocking(0)
+                self.clients[clientSocket] = ClientInfo(self)
+                yield True
+            else:
+                yield False
+
+    def coCommunicate(self):
+        clients = self.clients
+        rtr = False
+
+        while True:
+            if not clients:
+                while not clients:
+                    try:
+                        (self.ls)
+                    except AttributeError:
+                        print("No clients rest and listening socket closed. Exiting coomunication loop.") # net-0
+                        raise StopIteration()
+                    else:
+                        yield False
+
+            rs, ws, errs = [], [], []
+            for s, c in clients.items():
+                rs.append(s)
+                errs.append(s)
+                if c.outMsg:
+                    ws.append(s)
+                else:
+                    try:
+                        c.outMsg = c.output.pop(0)
+                    except IndexError:
+                        pass
+                    else:
+                        ws.append(s)
+
+            rtr, rtw, err = select(rs, ws, errs, 0)
+
+            if err:
+                for e in err:
+                    print("Client socket error raised during select.") # net-0
+                    c = clients[e]
+                    del clients[e]
+                    try:
+                        e.close()
+                    except:
+                        pass
+
+                    yield True
+                    c.socketError()
+
+                continue
+
+            if not (rtr or rtw):
+                yield False
+                continue
+
+            for r in rtr:
+                yield True
+
+                c = clients[r]
+
+                inMsg = c.inMsg
+                if not inMsg:
+                    c.inMsg = inMsg = Message()
+
+                chunk = r.recv(min(CHUNK_SIZE, inMsg.rest))
+                if chunk == b"":
+                    print("Disconnected.") # net-0
+                    del clients[r]
+                    try:
+                        r.close()
+                    except:
+                        pass
+
+                    # Remove broken socket from ready-to-write list
+                    # (if it presents there).
+                    try:
+                        rtw.remove(r)
+                    except ValueError:
+                        pass
+
+                    yield True
+                    c.disconnected()
+                    continue
+
+                inMsg.append(chunk)
+
+                # print(inMsg) # net-1
+
+                if not inMsg.rest:
+                    c.onMessage()
+                    c.inMsg = None
+
+            for w in rtw:
+                yield True
+
+                c = clients[w]
+
+                outMsg = c.outMsg
+
+                # print(outMsg) # net-1
+
+                rest = outMsg.rest
+                toSend = min(CHUNK_SIZE, rest)
+                chunk = outMsg.chunk
+                sent = w.send(chunk[:toSend])
+                if sent == 0:
+                    print("Sent returned 0.") # net-0
+                    continue
+
+                if sent == outMsg.rest:
+                    c.outMsg = None
+                    continue
+
+                outMsg.chunk = chunk[sent:]
+                outMsg.rest = rest - sent
+
 # File system model
 # -----------------
 
@@ -267,6 +708,250 @@ FSEvent = Enum("Events", """
 class FS(object):
     def __init__(self):
         self.eCtx = EventContext()
+
+RFSEvent = Enum("RemoteFSEvents", """
+    INCOMMING_MESSAGE
+""")
+
+class RemoteNodesReceiver():
+    def __init__(self, directory, fs):
+        self.node = directory
+        self.fs = fs
+        self.finished = False
+        self.total = None
+        self.skipped = None
+        self.files = {}
+        self.dirs = {}
+        self.nodes = {}
+
+    def onIncommingMessage(self, event, msg):
+        if msg._type != b"ret":
+            return
+
+        Attr, ep_data = msg.content.split(b"(", 1)
+        ep, data = ep_data.split(b"\0", 1)
+
+        node = self.node
+
+        ep = ep.decode("utf-8")
+        if ep != node.ep:
+            return
+
+        Attr = decode_str(Attr)
+        getattr(self, "handle_" + Attr)(data)
+
+        total = self.total
+        if total is None:
+            return
+
+        skipped = self.skipped
+        if skipped is None:
+            return
+
+        nodes = self.nodes
+
+        if total != skipped + len(nodes):
+            return
+
+        node.files, node.dirs, node.nodes, node.skipped = \
+            self.files, self.dirs, nodes, skipped
+
+        self.finished = True
+
+        self.fs.eCtx.notify(FSEvent.DIRECTORY_SCANNED, node)
+
+    def handle_Nodes(self, data):
+        self.total = int(data)
+
+        # print("Total nodes count %d gotten" % self.total) # net-1
+
+    def handle_Skipped(self, data):
+        self.skipped = int(data)
+
+        # print("Skipped %d gotten" % self.skipped) # net-1
+
+    def handle_File(self, data):
+        f = FileInfo(data.decode("utf-8"), directory = self.node)
+        self.files[f.dp] = f
+        self.nodes[f.dp] = f
+        self.fs.eCtx.notify(FSEvent.FILE_FOUND, f)
+
+        # print("File %s gotten" % f.dp) # net-1
+
+    def handle_Dir(self, data):
+        d = DirectoryInfo(data.decode("utf-8"), directory = self.node)
+        self.dirs[d.dp] = d
+        self.nodes[d.dp] = d
+        self.fs.eCtx.notify(FSEvent.DIRECTORY_FOUND, d)
+
+        # print("Directory %s gotten" % d.dp) # net-1
+
+class RemoteAttrReceiver():
+    def __init__(self, node, fs):
+        self.node = node
+        self.fs = fs
+        self.finished = False
+
+    def onIncommingMessage(self, event, msg):
+        if msg._type != b"ret":
+            return
+
+        Attr, ep_data = msg.content.split(b"(", 1)
+        ep, data = ep_data.split(b"\0", 1)
+
+        node = self.node
+
+        ep = ep.decode("utf-8")
+        if ep != node.ep:
+            return
+
+        data = loads(data)
+
+        Attr = decode_str(Attr)
+        attr = Attr.lower()
+        ATTR = Attr.upper()
+
+        setattr(node, attr, data)
+
+        self.finished = True
+
+        self.fs.eCtx.notify(
+            FSEvent["FILE_" + ATTR + "_GOT"], node
+        )
+
+class RemoteFS(FS):
+    def __init__(self, remoteAddress, remotePort, rootDirectoryEffectiveName):
+        super(RemoteFS, self).__init__()
+
+        self.root = DirectoryInfo(rootDirectoryEffectiveName,
+            fileSystem = self
+        )
+
+        s = socket(AF_INET, SOCK_STREAM)
+        s.setblocking(0)
+        s.connect_ex((remoteAddress, remotePort))
+
+        self.clientSocket = s
+
+        self.outMsgs = [AuthMessage(), FSMessage(rootDirectoryEffectiveName)]
+
+        self.poll = self.coPoll()
+
+    def coPoll(self):
+        clientSocket = self.clientSocket
+        rs = errs = [clientSocket]
+        outMsgs = self.outMsgs
+        outMsg = None
+        inMsg = None
+        eCtx = self.eCtx
+
+        while True:
+            if not outMsg and outMsgs:
+                outMsg = outMsgs.pop(0)
+
+                # print(outMsg) # net-1
+
+                ws = [clientSocket]
+            else:
+                ws = []
+
+            rtr, rtw, err = select(rs, ws, errs, 0)
+
+            if not (rtr or rtw or err):
+                yield False
+                continue
+
+            if err:
+                print("Client socked error.") # net-0
+                try:
+                    clientSocket.close()
+                except:
+                    pass
+                break
+
+            if rtr:
+                yield True
+
+                if not inMsg:
+                    inMsg = Message()
+
+                try:
+                    chunk = clientSocket.recv(min(CHUNK_SIZE, inMsg.rest))
+                except ConnectionRefusedError:
+                    print("Connection refused.") # net-0
+                    try:
+                        clientSocket.close()
+                    except:
+                        pass
+                    break
+
+                if chunk == b"":
+                    print("Server disconnected.") # net-0
+                    try:
+                        clientSocket.close()
+                    except:
+                        pass
+                    break
+                else:
+                    inMsg.append(chunk)
+
+                    # print(inMsg) # net-1
+
+                    if not inMsg.rest:
+                        eCtx.notify(RFSEvent.INCOMMING_MESSAGE, inMsg)
+                        inMsg = None
+
+            if rtw:
+                yield True
+
+                rest = outMsg.rest
+                toSend = min(CHUNK_SIZE, rest)
+                chunk = outMsg.chunk
+                sent = clientSocket.send(chunk[:toSend])
+
+                if sent == 0:
+                    print("Send returned 0.")
+                elif sent == outMsg.rest:
+                    outMsg = None
+                else:
+                    outMsg.chunk = chunk[sent:]
+                    outMsg.rest = rest - sent
+
+    def coGetAttr(self, node, Attr):
+        ep = node.ep
+        reqMsg = GetAttrMessage(ep, Attr)
+        self.outMsgs.append(reqMsg)
+
+        eCtx = self.eCtx
+
+        if Attr == "Nodes":
+            receiver = RemoteNodesReceiver(node, self)
+        else:
+            receiver = RemoteAttrReceiver(node, self)
+
+        eCtx.listen(receiver.onIncommingMessage,
+            RFSEvent.INCOMMING_MESSAGE
+        )
+
+        while not receiver.finished:
+            try:
+                yield next(self.poll)
+            except StopIteration:
+                raise RuntimeError("Polling ended!")
+
+        eCtx.forget(receiver.onIncommingMessage, RFSEvent.INCOMMING_MESSAGE)
+
+    def __getattr__(self, name):
+        try:
+            (nope, Attr) = name.split("coGet")
+        except ValueError:
+            return super(RemoteFS, self).__getattr__(name)
+        else:
+            def co(node, Attr = Attr):
+                for y in self.coGetAttr(node, Attr):
+                    yield y
+
+            return co
 
 # Directory Items Per Yield
 DIPY = 100
