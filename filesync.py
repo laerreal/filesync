@@ -559,8 +559,7 @@ in '%s'" % (name, n.ep)
         else:
             self.server.coDisp.enqueue(self.coGet(attr, ep))
 
-    def onMessage(self):
-        inMsg = self.inMsg
+    def onMessage(self, inMsg):
         self.inMsg = None
         handler = decode_str(inMsg._type)
         getattr(self, "handle_" + handler + "_")(inMsg.content)
@@ -715,7 +714,7 @@ class FSServer(object):
                 # print(inMsg) # net-1
 
                 if not inMsg.rest:
-                    c.onMessage()
+                    c.onMessage(inMsg)
                     c.inMsg = None
 
             for w in rtw:
