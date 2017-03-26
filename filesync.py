@@ -437,9 +437,10 @@ CHUNK_SIZE = 4096
     "handle_get_"
 )
 class ClientInfo(object):
-    def __init__(self, server):
+    def __init__(self, server, sock):
         self.server = server
         self.inMsg = None
+        self.sock = sock
         self.output = []
         self.outMsg = None
         self.state = "Auth"
@@ -624,7 +625,8 @@ class FSServer(object):
                 print("Incomming connection from %s:%u" % addr) # net-0
 
                 clientSocket.setblocking(0)
-                self.clients[clientSocket] = ClientInfo(self)
+                cl = ClientInfo(self, clientSocket)
+                self.clients[clientSocket] = cl
                 yield True
             else:
                 yield False
