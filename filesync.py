@@ -666,11 +666,9 @@ class FSServer(object):
         self.coDisp.enqueue(self.coAccept())
 
     def coAccept(self):
+        ls = self.ls
         while True:
-            ls = self.ls
-            ss = [ls]
-            # Ready To Read, Ready To Write
-            rtr, rtw, err = select(ss, [], ss, 0)
+            err = yield ls, False
 
             if err:
                 print("Listening socket error raised during select.") # net-0
@@ -681,18 +679,14 @@ class FSServer(object):
                     pass
                 break
 
-            if rtr:
-                (clientSocket, addr) = ls.accept()
+            (clientSocket, addr) = ls.accept()
 
-                print("Incomming connection from %s:%u" % addr) # net-0
+            print("Incomming connection from %s:%u" % addr) # net-0
 
-                clientSocket.setblocking(0)
-                cl = ClientInfo(self, clientSocket)
-                coDisp.enqueue(cl.coReceiver())
-                coDisp.enqueue(cl.coSender())
-                yield True
-            else:
-                yield False
+            clientSocket.setblocking(0)
+            cl = ClientInfo(self, clientSocket)
+            coDisp.enqueue(cl.coReceiver())
+            coDisp.enqueue(cl.coSender())
 
 # File system model
 # -----------------
