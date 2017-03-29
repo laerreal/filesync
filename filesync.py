@@ -1995,9 +1995,13 @@ class MainWindow(Tk):
             i -= 1
 
         l = self.statusBar
-        l.config(text = "Tasks: %2u + %2u (W) = %2u | %5u" % (
+        l.config(text = "Tasks: %2u + %2u (W)%s = %2u | %5u" % (
             len(coDisp.ready),
             len(coDisp.waiting),
+            " + %2u (S2R) + %2u (S2W)" % (
+                len(coDisp.socketsToRead),
+                len(coDisp.socketsToWrite)
+            ),
             coDisp.gotten,
             len(coDisp.queue)
         ) + " + %5u (C)" % len(coDisp.callers)
