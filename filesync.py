@@ -2048,4 +2048,5 @@ if __name__ == "__main__":
         while True:
             if not disp.iterate():
                 if not disp.select(0.01):
+                    print("sleep") # disp-1
                     sleep(0.01)
