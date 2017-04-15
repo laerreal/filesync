@@ -102,7 +102,7 @@ def openNoBlock(*args):
 # itself globally.
 coDisp = None
 
-CO_LIMIT = 10
+CO_LIMIT = 40
 class CoDisp(object):
     def __init__(self):
         self.gotten = 0
