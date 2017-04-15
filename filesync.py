@@ -992,9 +992,7 @@ class RemoteFS(FS):
             return super(RemoteFS, self).__getattr__(name)
         else:
             def co(node, Attr = Attr):
-                # TODO: return generator instead
-                for y in self.coGetAttr(node, Attr):
-                    yield y
+                yield self.coGetAttr(node, Attr)
 
             return co
 
