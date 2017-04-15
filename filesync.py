@@ -198,99 +198,72 @@ class CoDisp(object):
         r = self.ready
         q = self.queue
         w = self.waiting
-        g = self.gotten
         c = self.callers
         refs = self.references
         s2r = self.socketsToRead
         s2w = self.socketsToWrite
-        rs = self.readySockets
-
-        sockErr = None
-        try:
-            co = r.pop(0)
-        except IndexError:
-            try:
-                co, sockErr = rs.pop(0)
-            except IndexError:
-                if g < CO_LIMIT:
-                    try:
-                        co = q.pop(0)
-                    except IndexError:
-                        try:
-                            co = w.pop(0)
-                        except IndexError:
-                            return False
-                    else:
-                        g += 1
-                        self.gotten = g
-                else:
-                    co = w.pop(0)
 
         global coDisp
-        coDisp = self
 
-        try:
-            if sockErr is None:
-                ret = next(co)
-            else:
+        for co, sockErr in self.iteration():
+            coDisp = self
+            try:
                 ret = co.send(sockErr)
-        except StopIteration:
-            coDisp = None
+            except StopIteration:
+                coDisp = None
 
-            g -= 1
-            try:
-                coRefs = refs[co]
-            except KeyError:
-                self.gotten = g
-                return bool(r or rs or (q and (g < CO_LIMIT)))
-            else:
-                del refs[co]
-
-            for caller in coRefs:
-                c.remove(caller)
-                if g < CO_LIMIT:
-                    g += 1
-                    r.insert(0, caller)
+                try:
+                    coRefs = refs[co]
+                except KeyError:
+                    self.gotten -= 1
+                    return True
                 else:
-                    q.insert(0, caller)
-            self.gotten = g
+                    del refs[co]
 
-            return True
-        else:
-            coDisp = None
-
-        if isinstance(ret, GeneratorType):
-            assert co not in c
-            c.add(co)
-
-            try:
-                coRefs = refs[ret]
-            except KeyError:
-                refs[ret] = [co]
-            else:
-                coRefs.append(co)
-
-            if ret in c:
-                g -= 1
+                g = self.gotten - 1
+                for caller in coRefs:
+                    c.remove(caller)
+                    if g < CO_LIMIT:
+                        g += 1
+                        r.insert(0, caller)
+                    else:
+                        q.insert(0, caller)
                 self.gotten = g
-                return bool(r or q)
-            else:
-                r.append(ret)
+
                 return True
-        elif isinstance(ret, tuple):
-            sock = ret[0]
-            waitList = s2w if ret[1] else s2r
+            else:
+                coDisp = None
 
-            assert sock not in waitList
-            waitList[sock] = co
+            if isinstance(ret, GeneratorType):
+                c.add(co)
 
-            return bool(r or rs or (q and (g < CO_LIMIT)))
-        elif ret:
-            r.append(co)
-            return True
+                try:
+                    coRefs = refs[ret]
+                except KeyError:
+                    refs[ret] = [co]
+                else:
+                    coRefs.append(co)
 
-        w.append(co)
-        return bool(r or rs or (q and (g < CO_LIMIT)))
+                if ret in c:
+                    self.gotten -= 1
+                else:
+                    r.append(ret)
+
+                return True
+            elif isinstance(ret, tuple):
+                sock = ret[0]
+                waitList = s2w if ret[1] else s2r
+
+                waitList[sock] = co
+
+                return True
+            elif ret:
+                r.append(co)
+                return True
+
+            w.append(co)
+
+        return False
 
 class EventContext(object):
     # TODO: turn events to coroutine-based signals
