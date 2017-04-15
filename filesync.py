@@ -151,6 +151,49 @@ class CoDisp(object):
 
         return True
 
+    """ An iteration contains
+    - either 1 ready task
+    - or 1 ready socket
+    - or 1 new task from queue
+    - or polling of all waiting tasks at the beginning of the iteration untill
+      a waiting task becomes ready (execution of this ready task is part of the
+      iteration too).
+    """
+    def iteration(self):
+        r = self.ready
+        try:
+            yield r.pop(0), None
+        except IndexError:
+            rs = self.readySockets
+            try:
+                yield rs.pop(0)
+            except IndexError:
+                g = self.gotten
+                if g < CO_LIMIT:
+                    try:
+                        res = self.queue.pop(0), None
+                    except IndexError:
+                        pass
+                    else:
+                        g += 1
+                        self.gotten = g
+                        yield res
+                        return
+
+                w = self.waiting
+                for co in list(w):
+                    w.remove(co)
+
+                    yield co, None
+
+                    # a task can be waked up
+                    try:
+                        yield r.pop(0), None
+                    except IndexError:
+                        continue
+
+                    break
+
     def iterate(self):
         r = self.ready
         q = self.queue
