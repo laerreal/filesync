@@ -460,6 +460,7 @@ class ClientInfo(object):
         self.outMsg = None
         self.state = "Auth"
 
+    # TODO: exit sender and receiver
     def disconnected(self):
         pass
 
