@@ -2015,8 +2015,16 @@ class MainWindow(Tk):
             i -= 1
 
         l = self.statusBar
+        r = coDisp.ready
+        try:
+            desc = coDisp.desc[r[0]]
+        except (KeyError, IndexError):
+            desc = ""
+        else:
+            desc = " // " + desc
+
         l.config(text = "Tasks: %2u + %2u (W)%s = %2u | %5u" % (
-            len(coDisp.ready),
+            len(r),
             len(coDisp.waiting),
             " + %2u (S2R) + %2u (S2W)" % (
                 len(coDisp.socketsToRead),
@@ -2024,7 +2032,7 @@ class MainWindow(Tk):
             ),
             coDisp.gotten,
             len(coDisp.queue)
-        ) + " + %5u (C)" % len(coDisp.callers)
+        ) + " + %5u (C)" % len(coDisp.callers) + desc
         )
 
         if i > 0:
