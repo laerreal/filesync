@@ -1180,6 +1180,8 @@ class FSNode(object):
             co = coFn(self)
             req[attr] = co
 
+        coDisp.desc[co] = "Getting " + attr + " of " + self.dp
+
         return co
 
     def requestAttribute(self, attr, coDisp):
