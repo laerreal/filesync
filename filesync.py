@@ -114,6 +114,7 @@ class CoDisp(object):
         self.socketsToRead = {}
         self.socketsToWrite = {}
         self.readySockets = []
+        self.desc = {}
 
     def wake(self, co):
         self.waiting.remove(co)
@@ -211,6 +212,8 @@ class CoDisp(object):
                 ret = co.send(sockErr)
             except StopIteration:
                 coDisp = None
+
+                self.desc.pop(co, None)
 
                 try:
                     coRefs = refs[co]
