@@ -47,6 +47,8 @@ from subprocess import \
     PIPE
 
 from os.path import \
+    getsize, \
+    getctime, \
     split, \
     join, \
     isfile, \
@@ -86,6 +88,16 @@ from select import \
 
 from time import \
     sleep
+
+from traceback import \
+    format_exc
+
+from multiprocessing import \
+    Process, \
+    Queue
+
+from queue import \
+    Empty
 
 # Actual program below
 # ====================
@@ -1137,6 +1149,105 @@ class LinuxFS(FS):
         directory.files, directory.dirs, directory.nodes = files, dirs, nodes
         directory.skipped = skipped
         self.eCtx.notify(FSEvent.DIRECTORY_SCANNED, directory)
+
+def pGetBlocks(ep, fsize,  q):
+        f = open(ep, "rb", FCSBS << 2)
+
+        restFile = fsize
+
+        while restFile:
+            toRead = min(FCSBS, restFile)
+
+            readedBytes = f.read(toRead)
+            readedLen = len(readedBytes)
+
+            assert readedLen == toRead
+
+            sha = sha1()
+            sha.update(readedBytes)
+
+            digest = sha.digest()
+            q.put(digest)
+
+            restFile -= readedBytes
+
+        q.put(None)
+
+        f.close()
+
+class WindowsFS(FS):
+    def __init__(self, effectiveRootPath):
+        super(WindowsFS, self).__init__()
+
+        while effectiveRootPath[-1] == "\\":
+            effectiveRootPath = effectiveRootPath[:-1]
+
+        self.root = DirectoryInfo(effectiveRootPath, fileSystem = self)
+        self.sep = "\\"
+
+    def coGetModify(self, file):
+        try:
+            ct = getctime(file.ep)
+        except BaseException as e:
+            msg = format_exc()
+            self.eCtx.notify(FSEvent.FILE_MODIFY_ERROR, file,
+                exception = e,
+                trace = msg
+            )
+        else:
+            file.modify = ct
+            self.eCtx.notify(FSEvent.FILE_MODIFY_GOT, file)
+
+    def coGetSize(self, file):
+        try:
+            s = getsize(file.ep)
+        except BaseException as e:
+            msg = format_exc()
+            self.eCtx.notify(FSEvent.FILE_SIZE_ERROR, file,
+                exception = e,
+                trace = msg
+            )
+        else:
+            file.size = s
+            self.eCtx.notify(FSEvent.FILE_SIZE_GOT, file)
+
+    def coGetBlocks(self, file):
+        try:
+            fsize = file.size
+        except AttributeError:
+            yield file.attributeGetter("size")
+            fsize = file.size
+
+        q = Queue()
+        p = Process(target = pGetBlocks, args = (file.ep, fsize, q))
+
+        yield True
+
+        blocks = []
+
+        while p.is_alive():
+            yield True
+
+            while True:
+                try:
+                    block = q.get_nowait()
+                except Empty:
+                    yield False
+                else:
+                    break
+
+            if block is None:
+                break
+
+            blocks.append(block)
+
+        yield True
+
+        file.blocks = tuple(blocks)
+
+        self.eCtx.notify(FSEvent.FILE_BLOCKS_GOT, file)
+
+    coGetNodes = LinuxFS.coGetNodes
 
 class FSNode(object):
     def __init__(self, directoryPath, directory = None, fileSystem = None):
