@@ -136,7 +136,7 @@ F = FSTestFile
 
 baseFS = D("root",
  D("emptyFiles",
-  F("sameFile"),
+  F("someFile"),
   F("file with spaces"),
   F("файлСКириллицейВНазвании")
  ),
