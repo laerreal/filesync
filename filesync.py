@@ -727,7 +727,10 @@ class FSServer(object):
 def newFS(rootDirectoryEffectiveName):
     pieces = rootDirectoryEffectiveName.split("::")
     if len(pieces) <= 1:
-        return LinuxFS(rootDirectoryEffectiveName)
+        if os_name == "nt":
+            return WindowsFS(rootDirectoryEffectiveName)
+        else:
+            return LinuxFS(rootDirectoryEffectiveName)
     else:
         remote = pieces.pop(0)
         try:
