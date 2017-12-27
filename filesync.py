@@ -56,8 +56,6 @@ from os import \
     O_NONBLOCK, \
     listdir
 
-from enum import \
-    Enum
 
 from itertools import \
     combinations, \
@@ -726,26 +724,24 @@ def newFS(rootDirectoryEffectiveName):
             remotePort = int(remotePort, 0)
         return RemoteFS(remoteAddress, remotePort, "::".join(pieces))
 
-FSEvent = Enum("Events", """
-    DIRECTORY_FOUND
-    FILE_MODIFY_GOT
-    DIRECTORY_NODE_SKIPPED
-    FILE_MODIFY_ERROR
-    FILE_FOUND
-    FILE_SIZE_GOT
-    FILE_SIZE_ERROR
-    FILE_BLOCKS_GOT
-    FILE_BLOCKS_ERROR
-    DIRECTORY_SCANNED
-""")
+class FSEvent:
+    class DIRECTORY_FOUND: pass
+    class FILE_MODIFY_GOT: pass
+    class DIRECTORY_NODE_SKIPPED: pass
+    class FILE_MODIFY_ERROR: pass
+    class FILE_FOUND: pass
+    class FILE_SIZE_GOT: pass
+    class FILE_SIZE_ERROR: pass
+    class FILE_BLOCKS_GOT: pass
+    class FILE_BLOCKS_ERROR: pass
+    class DIRECTORY_SCANNED: pass
 
 class FS(object):
     def __init__(self):
         self.eCtx = EventContext()
 
-RFSEvent = Enum("RemoteFSEvents", """
-    INCOMMING_MESSAGE
-""")
+class RFSEvent:
+    class INCOMMING_MESSAGE: pass
 
 class RemoteNodesReceiver():
     def __init__(self, directory, fs, disp):
@@ -1225,13 +1221,12 @@ class FSNoneNode(FSNode):
         )
 
 # File System Comparation Event
-FSCEvent = Enum("FSCEvent", """
-    DIR_CMP_INFO
-    FILE_CMP_INFO
-    DIFF_DIR_SUBDIRS
-    DIFF_DIR_FILES
-    DIFF_FILES
-""")
+class FSCEvent:
+    class DIR_CMP_INFO: pass
+    class FILE_CMP_INFO: pass
+    class DIFF_DIR_SUBDIRS: pass
+    class DIFF_DIR_FILES: pass
+    class DIFF_FILES: pass
 
 class FSNodeComparationInfo(object):
     def __init__(self, directoryPath, parent = None):
