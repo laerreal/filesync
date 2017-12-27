@@ -53,9 +53,16 @@ from os.path import \
     isdir
 
 from os import \
-    O_NONBLOCK, \
+    name as os_name, \
     listdir
 
+if os_name != "nt":
+    from os import \
+        O_NONBLOCK
+
+    from fcntl import \
+        F_SETFL, \
+        fcntl
 
 from itertools import \
     combinations, \
@@ -66,10 +73,6 @@ from argparse import \
 
 from hashlib import \
     sha1
-
-from fcntl import \
-    F_SETFL, \
-    fcntl
 
 from socket import \
     ntohl, \
