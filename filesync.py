@@ -1018,7 +1018,9 @@ DIPY = 100
 # File CheckSum Block Size
 FCSBS = 4 << 10 # 4 KiB
 
-class LinuxFS(FS):
+class LocalFS(FS): pass
+
+class LinuxFS(LocalFS):
     def __init__(self, effectiveRootPath):
         super(LinuxFS, self).__init__()
 
@@ -1178,7 +1180,7 @@ def pGetBlocks(ep, fsize,  q):
 
         f.close()
 
-class WindowsFS(FS):
+class WindowsFS(LocalFS):
     def __init__(self, effectiveRootPath):
         super(WindowsFS, self).__init__()
 
