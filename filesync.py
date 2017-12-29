@@ -1476,21 +1476,17 @@ class FileComparationInfo(FSNodeComparationInfo):
             for attr in attrs:
                 yield True
 
-                while True:
-                    try:
-                        a1 = getattr(f1, attr)
-                    except AttributeError:
-                        yield f1.attributeGetter(attr)
-                    else:
-                        break
+                try:
+                    a1 = getattr(f1, attr)
+                except AttributeError:
+                    yield f1.attributeGetter(attr)
+                    a1 = getattr(f1, attr)
 
-                while True:
-                    try:
-                        a2 = getattr(f2, attr)
-                    except AttributeError:
-                        yield f2.attributeGetter(attr)
-                    else:
-                        break
+                try:
+                    a2 = getattr(f2, attr)
+                except AttributeError:
+                    yield f2.attributeGetter(attr)
+                    a2 = getattr(f2, attr)
 
                 m[f1][f2][attr] = (a1 == a2)
 
