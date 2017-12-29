@@ -1225,6 +1225,7 @@ class WindowsFS(LocalFS):
 
         q = Queue()
         p = Process(target = pGetChecksums, args = (file.ep, fsize, q))
+        p.run()
 
         yield True
 
