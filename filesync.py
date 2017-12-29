@@ -13,8 +13,7 @@ To turn off replace with: # \2
 TK_IMPORT = "Tk, TclError, Label, Frame"
 TTK_IMPORT = "Treeview, Notebook"
 
-from sys import \
-    version_info
+from sys import version_info
 
 if version_info > (3,):
     # Python 3
@@ -38,66 +37,53 @@ else:
     from cPickle import loads, dumps
 
 # Any python
-
-from types import \
-    GeneratorType
-
-from subprocess import \
-    Popen, \
+from types import GeneratorType
+from subprocess import (
+    Popen,
     PIPE
-
-from os.path import \
-    getsize, \
-    getctime, \
-    split, \
-    join, \
-    isfile, \
+)
+from os.path import (
+    getsize,
+    getctime,
+    split,
+    join,
+    isfile,
     isdir
-
-from os import \
-    name as os_name, \
+)
+from os import (
+    name as os_name,
     listdir
+)
 
 if os_name != "nt":
-    from os import \
-        O_NONBLOCK
+    from os import O_NONBLOCK
 
-    from fcntl import \
-        F_SETFL, \
+    from fcntl import (
+        F_SETFL,
         fcntl
+    )
 
-from itertools import \
-    combinations, \
+from itertools import (
+    combinations,
     count
-
-from argparse import \
-    ArgumentParser
-
-from hashlib import \
-    sha1
-
-from socket import \
-    ntohl, \
-    htonl, \
-    socket, \
-    AF_INET, \
+)
+from argparse import ArgumentParser
+from hashlib import sha1
+from socket import (
+    ntohl,
+    htonl,
+    socket,
+    AF_INET,
     SOCK_STREAM
-
-from select import \
-    select
-
-from time import \
-    sleep
-
-from traceback import \
-    format_exc
-
-from multiprocessing import \
-    Process, \
+)
+from select import select
+from time import sleep
+from traceback import format_exc
+from multiprocessing import (
+    Process,
     Queue
-
-from queue import \
-    Empty
+)
+from queue import Empty
 
 # Actual program below
 # ====================
