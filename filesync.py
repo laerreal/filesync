@@ -1231,14 +1231,19 @@ class WindowsFS(LocalFS):
 
         checksums = []
 
-        while p.is_alive():
+        while True:
             yield True
 
             while True:
                 try:
                     block = q.get_nowait()
                 except Empty:
-                    yield False
+                    if p.is_alive():
+                        yield False
+                    else:
+                        raise RuntimeError(
+                            "Process terminated before checksum is obtained"
+                        )
                 else:
                     break
 
