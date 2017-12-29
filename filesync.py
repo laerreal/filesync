@@ -1156,29 +1156,29 @@ class LinuxFS(LocalFS):
         self.eCtx.notify(FSEvent.DIRECTORY_SCANNED, directory)
 
 def pGetChecksums(ep, fsize,  q):
-        f = open(ep, "rb", FCSBS << 2)
+    f = open(ep, "rb", FCSBS << 2)
 
-        restFile = fsize
+    restFile = fsize
 
-        while restFile:
-            toRead = min(FCSBS, restFile)
+    while restFile:
+        toRead = min(FCSBS, restFile)
 
-            readedBytes = f.read(toRead)
-            readedLen = len(readedBytes)
+        readedBytes = f.read(toRead)
+        readedLen = len(readedBytes)
 
-            assert readedLen == toRead
+        assert readedLen == toRead
 
-            sha = sha1()
-            sha.update(readedBytes)
+        sha = sha1()
+        sha.update(readedBytes)
 
-            digest = sha.digest()
-            q.put(digest)
+        digest = sha.digest()
+        q.put(digest)
 
-            restFile -= readedLen
+        restFile -= readedLen
 
-        q.put(None)
+    q.put(None)
 
-        f.close()
+    f.close()
 
 class WindowsFS(LocalFS):
     def __init__(self, effectiveRootPath):
