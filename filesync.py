@@ -1174,7 +1174,7 @@ def pGetChecksums(ep, fsize,  q):
             digest = sha.digest()
             q.put(digest)
 
-            restFile -= readedBytes
+            restFile -= readedLen
 
         q.put(None)
 
