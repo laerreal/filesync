@@ -750,8 +750,8 @@ class FSEvent:
     class FILE_FOUND: pass
     class FILE_SIZE_GOT: pass
     class FILE_SIZE_ERROR: pass
-    class FILE_BLOCKS_GOT: pass
-    class FILE_BLOCKS_ERROR: pass
+    class FILE_CHECKSUMS_GOT: pass
+    class FILE_CHECKSUMS_ERROR: pass
     class DIRECTORY_SCANNED: pass
 
 class FS(object):
@@ -1066,7 +1066,7 @@ class LinuxFS(LocalFS):
             file.size = long(p.communicate()[0])
             self.eCtx.notify(FSEvent.FILE_SIZE_GOT, file)
 
-    def coGetBlocks(self, file):
+    def coGetChecksums(self, file):
         while True:
             try:
                 restFile = file.size
@@ -1078,7 +1078,7 @@ class LinuxFS(LocalFS):
         f = openNoBlock(file.ep, "rb", FCSBS << 2)
         yield True
 
-        blocks = []
+        checksums = []
 
         while restFile:
             block = b''
@@ -1103,15 +1103,15 @@ class LinuxFS(LocalFS):
             sha = sha1()
             sha.update(block)
             digest = sha.digest()
-            blocks.append(digest)
+            checksums.append(digest)
 
         yield True
         f.close()
         yield True
 
-        file.blocks = tuple(blocks)
+        file.checksums = tuple(checksums)
 
-        self.eCtx.notify(FSEvent.FILE_BLOCKS_GOT, file)
+        self.eCtx.notify(FSEvent.FILE_CHECKSUMS_GOT, file)
 
     def coGetNodes(self, directory):
         # node pathes
@@ -1155,7 +1155,7 @@ class LinuxFS(LocalFS):
         directory.skipped = skipped
         self.eCtx.notify(FSEvent.DIRECTORY_SCANNED, directory)
 
-def pGetBlocks(ep, fsize,  q):
+def pGetChecksums(ep, fsize,  q):
         f = open(ep, "rb", FCSBS << 2)
 
         restFile = fsize
@@ -1216,7 +1216,7 @@ class WindowsFS(LocalFS):
             file.size = s
             self.eCtx.notify(FSEvent.FILE_SIZE_GOT, file)
 
-    def coGetBlocks(self, file):
+    def coGetChecksums(self, file):
         try:
             fsize = file.size
         except AttributeError:
@@ -1224,11 +1224,11 @@ class WindowsFS(LocalFS):
             fsize = file.size
 
         q = Queue()
-        p = Process(target = pGetBlocks, args = (file.ep, fsize, q))
+        p = Process(target = pGetChecksums, args = (file.ep, fsize, q))
 
         yield True
 
-        blocks = []
+        checksums = []
 
         while p.is_alive():
             yield True
@@ -1244,13 +1244,13 @@ class WindowsFS(LocalFS):
             if block is None:
                 break
 
-            blocks.append(block)
+            checksums.append(block)
 
         yield True
 
-        file.blocks = tuple(blocks)
+        file.checksums = tuple(checksums)
 
-        self.eCtx.notify(FSEvent.FILE_BLOCKS_GOT, file)
+        self.eCtx.notify(FSEvent.FILE_CHECKSUMS_GOT, file)
 
     coGetNodes = LinuxFS.coGetNodes
 
@@ -1438,7 +1438,7 @@ class FileComparationInfo(FSNodeComparationInfo):
     attrs = (
         "modify",
         "size",
-        "blocks"
+        "checksums"
     )
 
     def __init__(self, files, parent):
