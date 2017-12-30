@@ -1168,7 +1168,7 @@ class WindowsFS(LocalFS):
             effectiveRootPath = effectiveRootPath[:-1]
 
         self.root = DirectoryInfo(effectiveRootPath, fileSystem = self)
-        self.sep = "\\"
+        self.sep = ("\\", "/")
 
     def coGetModify(self, file):
         try:
