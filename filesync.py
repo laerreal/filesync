@@ -84,7 +84,10 @@ from multiprocessing import (
     Queue
 )
 from queue import Empty
-from common import Stateful
+from common import (
+    Stateful,
+    bytes2int, int2bytes
+)
 
 # Actual program below
 # ====================
@@ -298,25 +301,6 @@ class EventContext(object):
         for e in events:
             ls = allLs[e]
             ls.remove(cb)
-
-def bytes2int(bytes):
-    result = 0
-
-    for b in bytes:
-        result = result * 256 + int(b)
-
-    return result
-
-def int2bytes(value, length):
-    result = []
-
-    for i in range(0, length):
-        result.append(value >> (i * 8) & 0xff)
-
-    result.reverse()
-    result = bytes(result)
-
-    return result
 
 # Networking
 # ==========
