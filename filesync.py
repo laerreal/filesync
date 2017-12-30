@@ -845,7 +845,7 @@ class RemoteAttrReceiver():
         self.disp.wake(self.co)
 
         self.fs.eCtx.notify(
-            FSEvent["FILE_" + ATTR + "_GOT"], node
+            getattr(FSEvent, "FILE_" + ATTR + "_GOT"), node
         )
 
 class RemoteFS(FS):
