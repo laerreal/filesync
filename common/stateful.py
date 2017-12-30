@@ -6,10 +6,10 @@ class Stateful():
         self.attrs = attrs
 
     def __call__(self, klass):
-        def get_state(obj):
+        def getState(obj):
             return obj.__state
 
-        def set_state(obj, state, attrs = self.attrs):
+        def setState(obj, state, attrs = self.attrs):
             for attr in attrs:
                 try:
                     val = getattr(obj, attr + state)
@@ -17,5 +17,5 @@ class Stateful():
                     val = None
                 setattr(obj, attr, val)
 
-        klass.state = property(get_state, set_state)
+        klass.state = property(getState, setState)
         return klass
