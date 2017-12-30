@@ -64,6 +64,7 @@ if os_name != "nt":
     )
 
 from itertools import (
+    chain,
     combinations,
     count
 )
@@ -710,6 +711,28 @@ class FSEvent:
 class FS(object):
     def __init__(self):
         self.eCtx = EventContext()
+
+    def split(self, pathStr):
+        sep = self.sep
+
+        if isinstance(sep, tuple):
+            res = [pathStr]
+            for s in sep:
+                res = chain(*[part.split(s) for part in res])
+            # convert chain iterator into a list skipping empty parts
+            res = [part for part in res if part]
+        else:
+            res = pathStr.split(sep)
+
+        return res
+
+    def join(self, uniPath):
+        sep = self.sep
+
+        if isinstance(sep, tuple):
+            sep = sep[0]
+
+        return sep.join(uniPath)
 
 class RFSEvent:
     class INCOMMING_MESSAGE: pass
