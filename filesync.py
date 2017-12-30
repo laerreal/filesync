@@ -440,30 +440,33 @@ class ClientInfo(object):
         # look up node by effective path
         fs = self.fs
         root = fs.root
-        sep = fs.sep
-        rootDP, rp = (
-            effectivePath[:len(root.dp)],
-            effectivePath[len(root.dp) + len(sep):]
-        )
 
-        if rootDP != root.dp:
-            raise RuntimeError("Client requested other root: %s" % rootDP)
+        uni_rdp = fs.split(root.dp)
+        uni_ep = fs.split(effectivePath)
+
+        uni_ep_pfx = uni_ep[:len(uni_rdp)]
+        uni_rp = uni_ep[len(uni_rdp):]
+
+        if uni_rdp != uni_ep_pfx:
+            raise RuntimeError(
+                "Client requested other root: %s" % fs.join(uni_ep_pfx)
+            )
 
         n = root
-        if rp:
-            for name in rp.split(sep):
-                try:
-                    nodes = n.nodes
-                except AttributeError:
-                    yield n.attributeGetter("nodes")
-                    nodes = n.nodes
 
-                try:
-                    n = nodes[name]
-                except KeyError:
-                    raise RuntimeError("Client requested unexisting node '%s'"
-                        " in '%s'" % (name, n.ep)
-                    )
+        for name in uni_rp:
+            try:
+                nodes = n.nodes
+            except AttributeError:
+                yield n.attributeGetter("nodes")
+                nodes = n.nodes
+
+            try:
+                n = nodes[name]
+            except KeyError:
+                raise RuntimeError("Client requested unexisting node '%s'"
+                    " in '%s'" % (name, n.ep)
+                )
 
         node.append(n)
 
