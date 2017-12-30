@@ -440,8 +440,10 @@ class ClientInfo(object):
         fs = self.fs
         root = fs.root
         sep = fs.sep
-        rootDP, rp = effectivePath[:len(root.dp)], \
-                     effectivePath[len(root.dp) + len(sep):]
+        rootDP, rp = (
+            effectivePath[:len(root.dp)],
+            effectivePath[len(root.dp) + len(sep):]
+        )
 
         if rootDP != root.dp:
             raise RuntimeError("Client requested other root: %s" % rootDP)
@@ -458,8 +460,8 @@ class ClientInfo(object):
                 try:
                     n = nodes[name]
                 except KeyError:
-                    raise RuntimeError("Client requested unexisting node '%s' \
-in '%s'" % (name, n.ep)
+                    raise RuntimeError("Client requested unexisting node '%s'"
+                        " in '%s'" % (name, n.ep)
                     )
 
         node.append(n)
@@ -753,8 +755,9 @@ class RemoteNodesReceiver():
         if total != skipped + len(nodes):
             return
 
-        node.files, node.dirs, node.nodes, node.skipped = \
+        (node.files, node.dirs, node.nodes, node.skipped) = (
             self.files, self.dirs, nodes, skipped
+        )
 
         self.finished = True
         self.disp.wake(self.co)
@@ -1239,8 +1242,9 @@ class FSNode(object):
             return ep
 
     def attributeGetter(self, attr):
-        assert attr not in self.__dict__, \
+        assert attr not in self.__dict__, (
             "Attempt to request available attribute " + attr
+        )
 
         req = self.req
 
@@ -2090,16 +2094,17 @@ class MainWindow(Tk):
         else:
             desc = " // " + desc
 
-        l.config(text = "Tasks: %2u + %2u (W)%s = %2u | %5u" % (
-            len(r),
-            len(coDisp.waiting),
-            " + %2u (S2R) + %2u (S2W)" % (
-                len(coDisp.socketsToRead),
-                len(coDisp.socketsToWrite)
-            ),
-            coDisp.gotten,
-            len(coDisp.queue)
-        ) + " + %5u (C)" % len(coDisp.callers) + desc
+        l.config(
+            text = "Tasks: %2u + %2u (W)%s = %2u | %5u" % (
+                len(r),
+                len(coDisp.waiting),
+                " + %2u (S2R) + %2u (S2W)" % (
+                    len(coDisp.socketsToRead),
+                    len(coDisp.socketsToWrite)
+                    ),
+                coDisp.gotten,
+                len(coDisp.queue)
+            ) + " + %5u (C)" % len(coDisp.callers) + desc
         )
 
         if i > 0:
