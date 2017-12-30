@@ -10,6 +10,8 @@ class Stateful():
             return obj.__state
 
         def setState(obj, state, attrs = self.attrs):
+            obj.__state = state
+
             for attr in attrs:
                 try:
                     val = getattr(obj, attr + state)
