@@ -1,7 +1,7 @@
 __all__ = ["Stateful"]
 
-# Decorator for stateful object classes
 class Stateful():
+    """Decorator for stateful object classes"""
     def __init__(self, *attrs):
         self.attrs = attrs
 
