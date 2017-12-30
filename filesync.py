@@ -571,7 +571,13 @@ class ClientInfo(object):
             if not inMsg:
                 inMsg = Message()
 
-            chunk = sock.recv(min(CHUNK_SIZE, inMsg.rest))
+            try:
+                chunk = sock.recv(min(CHUNK_SIZE, inMsg.rest))
+            except ConnectionResetError:
+                # Under Windows OS, this exception is raised instead
+                # of returning of b"" when a client disconnected.
+                chunk = b""
+
             if chunk == b"":
                 print("Disconnected.") # net-0
                 self.disconnected()
