@@ -16,8 +16,12 @@ class Stateful():
                 try:
                     val = getattr(obj, attr + state)
                 except AttributeError:
-                    val = None
-                setattr(obj, attr, val)
+                    try:
+                        delattr(obj, attr)
+                    except AttributeError:
+                        pass
+                else:
+                    setattr(obj, attr, val)
 
         klass.state = property(getState, setState)
         return klass
