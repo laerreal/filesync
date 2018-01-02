@@ -2151,7 +2151,7 @@ class MainWindow(Tk):
                 self.update()
                 self.iterateCoroutines()
         except TclError:
-            pass
+            print(format_exc())
 
 # Main program
 # ------------
