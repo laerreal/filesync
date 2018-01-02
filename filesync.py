@@ -1594,9 +1594,9 @@ class RootComparationContext(object):
 
                         for attr in attrs:
                             if not attr in oneFile.__dict__:
-                                oneFile.requestAttribute(attr, coDisp)
+                                yield oneFile.attributeGetter(attr)
                     else:
-                        coDisp.enqueue(fci.coCompare(self))
+                        yield fci.coCompare(self)
 
                     yield True
 
