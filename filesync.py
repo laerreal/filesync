@@ -478,7 +478,7 @@ class ClientInfo(object):
     # FS state
     def handle_FS_FS(self, content):
         effectiveRootName = content.decode("utf-8")
-        print("Preparing file system: " + effectiveRootName + " ... ", end="") # net-0
+        print("Preparing file system: " + effectiveRootName + " ... ", end = "") # net-0
         self.fs = self.server.getFS(effectiveRootName)
         print("OK") # net-0
         self.state = "Work"
@@ -1141,7 +1141,7 @@ class LinuxFS(LocalFS):
         directory.skipped = skipped
         self.eCtx.notify(FSEvent.DIRECTORY_SCANNED, directory)
 
-def pGetChecksums(ep, fsize,  q):
+def pGetChecksums(ep, fsize, q):
     f = open(ep, "rb", FCSBS << 2)
 
     restFile = fsize
@@ -1711,15 +1711,15 @@ class RootInfo(Frame):
         Frame.__init__(self, parent)
 
         self.grid()
-        self.rowconfigure(0, weight=1)
-        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight = 1)
+        self.columnconfigure(0, weight = 1)
 
         rootDir.enqueueRecursiveReading(coDisp)
 
         ft = FileTree(self, rootDir)
-        ft.grid(row = 0, column = 0, sticky="NESW")
+        ft.grid(row = 0, column = 0, sticky = "NESW")
 
-        self.rowconfigure(1, weight=0)
+        self.rowconfigure(1, weight = 0)
         self.statusBar = l = Label(self)
         l.grid(
             row = 1,
@@ -2087,8 +2087,8 @@ class MainWindow(Tk):
         coDisp = self.coDisp = CoDisp()
 
         self.grid()
-        self.rowconfigure(0, weight=1)
-        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight = 1)
+        self.columnconfigure(0, weight = 1)
 
         nbRoots = Notebook(self)
         nbRoots.grid(row = 0, column = 0, sticky = "NESW")
