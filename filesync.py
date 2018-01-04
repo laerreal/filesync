@@ -944,6 +944,10 @@ class RemoteFS(FS):
                 except:
                     pass
                 break
+            except ConnectionResetError:
+                # Sender failure.
+                # This behavior was observed under Windows 7
+                chunk = b""
 
             if chunk == b"":
                 print("Server disconnected.") # net-0
