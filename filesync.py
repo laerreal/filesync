@@ -78,7 +78,10 @@ from socket import (
     SOCK_STREAM
 )
 from select import select
-from time import sleep
+from time import (
+    sleep,
+    time
+)
 from traceback import format_exc
 from multiprocessing import (
     Process,
@@ -1217,6 +1220,9 @@ class WindowsFS(LocalFS):
 
         checksums = []
 
+        # Support delays in queue after the process ended.
+        waitForRest = True
+
         while True:
             yield True
 
@@ -1227,6 +1233,18 @@ class WindowsFS(LocalFS):
                     if p.is_alive():
                         yield False
                     else:
+                        if waitForRest:
+                            waitForRest = False
+                            t0 = time()
+                            yield False
+                            continue
+                        else:
+                            if time() - t0 < 10.0:
+                                # TODO: support coroutine sleeping by
+                                # dispatcher.
+                                yield False
+                                continue
+
                         raise RuntimeError(
                             "Process terminated before checksum is obtained"
                         )
