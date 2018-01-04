@@ -92,6 +92,7 @@ from common import (
     Stateful,
     bytes2int, int2bytes
 )
+from widgets import CoView
 
 # Actual program below
 # ====================
@@ -2125,6 +2126,9 @@ class MainWindow(Tk):
             ri = RootInfo(self, rd, coDisp)
             nbRoots.add(ri, text = rd.dp)
 
+        self.coview = w = CoView(coDisp = coDisp, master = nbRoots)
+        nbRoots.add(w, text = "Tasks")
+
         self.rowconfigure(1, weight = 0)
         self.statusBar = l = Label(self, font = ("Monospace", 8))
         l.grid(row = 1, column = 0,
@@ -2138,6 +2142,8 @@ class MainWindow(Tk):
         i = CIPMLI
         while i > 0 and coDisp.iterate():
             i -= 1
+
+        self.coview.updateTree()
 
         l = self.statusBar
         r = coDisp.ready
