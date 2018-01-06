@@ -122,6 +122,7 @@ class CoDisp(object):
         self.socketsToRead = {}
         self.socketsToWrite = {}
         self.readySockets = []
+        self.current = None
         self.desc = {}
 
     def wake(self, co):
@@ -216,9 +217,11 @@ class CoDisp(object):
 
         for co, sockErr in self.iteration():
             coDisp = self
+            self.current = co
             try:
                 ret = co.send(sockErr)
             except StopIteration:
+                self.current = None
                 coDisp = None
 
                 self.desc.pop(co, None)
@@ -243,6 +246,7 @@ class CoDisp(object):
 
                 return True
             else:
+                self.current = None
                 coDisp = None
 
             if isinstance(ret, GeneratorType):
