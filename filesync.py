@@ -2120,6 +2120,7 @@ class CmpInfo(Frame):
 
 # Coroutine Iterations Per Main Loop Iteration
 CIPMLI = 10
+UPDATE_PERIOD = 0.1 # sec
 
 class MainWindow(Tk):
     def __init__(self, rootDirectoryEffectiveNames):
@@ -2154,6 +2155,8 @@ class MainWindow(Tk):
             sticky = "SW"
         )
 
+        self.lastUpdate = time() - UPDATE_PERIOD
+
     def iterateCoroutines(self):
         coDisp = self.coDisp
 
@@ -2161,29 +2164,33 @@ class MainWindow(Tk):
         while i > 0 and coDisp.iterate():
             i -= 1
 
-        self.coview.updateTree()
+        t = time()
+        if t - self.lastUpdate > UPDATE_PERIOD:
+            self.lastUpdate = t
 
-        l = self.statusBar
-        r = coDisp.ready
-        try:
-            desc = coDisp.desc[r[0]]
-        except (KeyError, IndexError):
-            desc = ""
-        else:
-            desc = " // " + desc
+            self.coview.updateTree()
 
-        l.config(
-            text = "Tasks: %2u + %2u (W)%s = %2u | %5u" % (
-                len(r),
-                len(coDisp.waiting),
-                " + %2u (S2R) + %2u (S2W)" % (
-                    len(coDisp.socketsToRead),
-                    len(coDisp.socketsToWrite)
-                    ),
-                coDisp.gotten,
-                len(coDisp.queue)
-            ) + " + %5u (C)" % len(coDisp.callers) + desc
-        )
+            l = self.statusBar
+            r = coDisp.ready
+            try:
+                desc = coDisp.desc[r[0]]
+            except (KeyError, IndexError):
+                desc = ""
+            else:
+                desc = " // " + desc
+
+            l.config(
+                text = "Tasks: %2u + %2u (W)%s = %2u | %5u" % (
+                    len(r),
+                    len(coDisp.waiting),
+                    " + %2u (S2R) + %2u (S2W)" % (
+                        len(coDisp.socketsToRead),
+                        len(coDisp.socketsToWrite)
+                        ),
+                    coDisp.gotten,
+                    len(coDisp.queue)
+                ) + " + %5u (C)" % len(coDisp.callers) + desc
+            )
 
         if i > 0:
             if not coDisp.select(0.01):
