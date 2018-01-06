@@ -219,11 +219,12 @@ class CoDisp(object):
             coDisp = self
             self.current = co
             try:
-                ret = co.send(sockErr)
+                try:
+                    ret = co.send(sockErr)
+                finally:
+                    self.current = None
+                    coDisp = None
             except StopIteration:
-                self.current = None
-                coDisp = None
-
                 self.desc.pop(co, None)
 
                 coRefs = refs.pop(co, tuple())
@@ -239,9 +240,6 @@ class CoDisp(object):
                 self.gotten = g
 
                 return True
-            else:
-                self.current = None
-                coDisp = None
 
             if isinstance(ret, GeneratorType):
                 c.add(co)
