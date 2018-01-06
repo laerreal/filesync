@@ -123,7 +123,26 @@ class CoDisp(object):
         self.socketsToWrite = {}
         self.readySockets = []
         self.current = None
+
+        # extra self-declaring coroutine information
         self.desc = {}
+        self.progress = {}
+        self.goal = {}
+
+    def coGoal(self, v):
+        self.goal[self.current] = v
+
+    def coProgress(self, v = None):
+        "Add `v` to progress counter. `None` resets the counter."
+
+        c = self.current
+
+        if v is None:
+            v = 0
+        else:
+            v += self.progress.get(c, 0)
+
+        self.progress[c] = v
 
     def wake(self, co):
         self.waiting.remove(co)
