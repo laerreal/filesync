@@ -12,11 +12,31 @@ socketRows = {"s2r", "s2w"}
 def siid(sock):
     return "sock%u" % sock.fileno()
 
+def cells(d, co):
+    p = d.progress.get(co, None)
+
+    if p is None:
+        return ("?",)
+
+    g = d.goal.get(co, None)
+
+    if g is None:
+        return (p,)
+
+    aspect = p * 100 // g
+
+    return ("%u/%u (%u%%)" % (p, g, aspect),)
+
 class CoView(Treeview):
     def __init__(self, coDisp = None, **kw):
+        kw["columns"] = [
+            ":p" # progress
+        ]
+
         Treeview.__init__(self, **kw)
 
         self.heading("#0", text = "Task")
+        self.heading(":p", text = "Progress")
 
         self.insert("", "end",
             iid = "s2r",
@@ -78,6 +98,8 @@ class CoView(Treeview):
                         )
 
                         self.item(iid, open = True)
+                finally:
+                    self.item(iid, values = cells(d, co))
 
                 stack.append((iid, (co,)))
 
@@ -115,6 +137,8 @@ class CoView(Treeview):
                         self.insert(parent, idx, iid = iid, text = text)
                         self.item(iid, open = True)
                         # print("ok")
+                finally:
+                    self.item(iid, values = cells(d, co))
 
                 if co in refs:
                     stack.append((iid, refs[co]))
