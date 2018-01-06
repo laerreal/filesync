@@ -1232,6 +1232,8 @@ class WindowsFS(LocalFS):
             yield file.attributeGetter("size")
             fsize = file.size
 
+        coDisp.coGoal(fsize)
+
         q = Queue()
         p = Process(target = pGetChecksums, args = (file.ep, fsize, q))
         p.run()
@@ -1275,6 +1277,7 @@ class WindowsFS(LocalFS):
                 break
 
             checksums.append(block)
+            coDisp.coProgress(FCSBS)
 
         yield True
 
