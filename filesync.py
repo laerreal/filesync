@@ -226,13 +226,7 @@ class CoDisp(object):
 
                 self.desc.pop(co, None)
 
-                try:
-                    coRefs = refs[co]
-                except KeyError:
-                    self.gotten -= 1
-                    return True
-                else:
-                    del refs[co]
+                coRefs = refs.pop(co, tuple())
 
                 g = self.gotten - 1
                 for caller in coRefs:
