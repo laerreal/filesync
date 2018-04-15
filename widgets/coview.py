@@ -2,7 +2,12 @@ __all__ = [
     "CoView"
 ]
 
-from six.moves.tkinter.ttk import Treeview
+from sys import version_info
+
+if version_info[0] == 2:
+    from ttk import Treeview
+else:
+    from tkinter.ttk import Treeview
 
 def coiid(co):
     return "co%u" % id(co)
