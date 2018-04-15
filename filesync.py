@@ -26,6 +26,13 @@ if version_info > (3,):
         return bytes.decode("utf-8")
 
     from pickle import loads, dumps
+
+    exec("""
+def printnnl(arg):
+    print(arg, end = "")
+""",
+        globals()
+    )
 else:
     # Python 2
     exec("from Tkinter import " + TK_IMPORT)
@@ -35,6 +42,13 @@ else:
         return str(bytes)
 
     from cPickle import loads, dumps
+
+    exec("""
+def printnnl(arg):
+    print arg,
+""",
+        globals()
+    )
 
 # Any python
 from types import GeneratorType
@@ -497,7 +511,7 @@ class ClientInfo(object):
     # FS state
     def handle_FS_FS(self, content):
         effectiveRootName = content.decode("utf-8")
-        print("Preparing file system: " + effectiveRootName + " ... ", end = "") # net-0
+        printnnl("Preparing file system: " + effectiveRootName + " ... ") # net-0
         self.fs = self.server.getFS(effectiveRootName)
         print("OK") # net-0
         self.state = "Work"
@@ -666,11 +680,11 @@ class FSServer(object):
         s.setblocking(0)
         bindTo = ("127.0.0.1", self.port)
 
-        print("Binding to %s:%u..." % bindTo, end = "") # net-0
+        printnnl("Binding to %s:%u..." % bindTo) # net-0
 
         s.bind(bindTo)
 
-        print(" OK\nListening starting... ", end = "") # net-0
+        printnnl(" OK\nListening starting... ") # net-0
 
         s.listen(5)
 
