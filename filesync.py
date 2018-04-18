@@ -123,8 +123,8 @@ def openNoBlock(*args):
 
 # Coroutine API
 # -------------
-# Simulatenous dispatching is not allowd. Hence, current dispatcher may declare
-# itself globally.
+# Simultaneous dispatching is not allowed. Hence, current dispatcher may
+# declare itself globally.
 coDisp = None
 
 CO_LIMIT = 40
@@ -176,7 +176,7 @@ class CoDisp(object):
         if not (s2r or s2w):
             return False
 
-        # Readt To Read(Write)
+        # Ready To Read(Write)
         r2r, r2w = select(s2r.keys(), s2w.keys(), [], timeout)[:2]
 
         for r in r2r:
@@ -201,7 +201,7 @@ class CoDisp(object):
     - either 1 ready task
     - or 1 ready socket
     - or 1 new task from queue
-    - or polling of all waiting tasks at the beginning of the iteration untill
+    - or polling of all waiting tasks at the beginning of the iteration until
       a waiting task becomes ready (execution of this ready task is part of the
       iteration too).
     """
@@ -713,7 +713,7 @@ class FSServer(object):
 
             (clientSocket, addr) = ls.accept()
 
-            print("Incomming connection from %s:%u" % addr) # net-0
+            print("Incoming connection from %s:%u" % addr) # net-0
 
             clientSocket.setblocking(0)
             cl = ClientInfo(self, clientSocket)
@@ -1140,7 +1140,7 @@ class LinuxFS(LocalFS):
         self.eCtx.notify(FSEvent.FILE_CHECKSUMS_GOT, file)
 
     def coGetNodes(self, directory):
-        # node pathes
+        # node paths
         nps = listdir(directory.ep)
 
         yield True
@@ -1390,7 +1390,7 @@ class FSNoneNode(FSNode):
             directory = directory
         )
 
-# File System Comparation Event
+# File System Comparison Event
 class FSCEvent:
     class DIR_CMP_INFO: pass
     class FILE_CMP_INFO: pass
@@ -1405,7 +1405,7 @@ class FSNodeComparationInfo(object):
 
         self.dp = directoryPath
 
-    # relative apth
+    # relative path
     @property
     def rp(self):
         try:
@@ -1426,7 +1426,7 @@ class FSNodeComparationInfo(object):
 
 class DirectoryComparationInfo(FSNodeComparationInfo):
     def __init__(self, dirs, parent = None):
-        # dirs order is sugnificant
+        # dirs order is significant
         if parent is None:
             directoryPath = "root:"
         else:
@@ -1493,7 +1493,7 @@ class FileComparationInfo(FSNodeComparationInfo):
     )
 
     def __init__(self, files, parent):
-        # files order is sugnificant
+        # files order is significant
         for f in files:
             if not isinstance(f, FSNoneNode):
                 directoryPath = f.dp
@@ -1575,7 +1575,7 @@ class RootComparationContext(object):
             curDci = queue.pop(0)
             cur = curDci.dirs
 
-            # queue subdirectories
+            # queue sub-directories
             dirSummary = set()
 
             # d = Directory
@@ -1893,11 +1893,11 @@ class CmpResTree(Treeview):
         coDisp.enqueue(cmpCtx.coCompare())
 
         self.iidGen = iidGenerator()
-        # File system node comparation info to iid
+        # File system node comparison info to iid
         self.fsnci2iid = {None: ""}
         self.iid2fsnci = {}
 
-        # Maintaning the tree
+        # Maintaining the tree
         eCtx.listen(self.onDirCmpInfo, FSCEvent.DIR_CMP_INFO)
         eCtx.listen(self.onFileCmpInfo, FSCEvent.FILE_CMP_INFO)
 
@@ -1926,7 +1926,7 @@ class CmpResTree(Treeview):
             key = lambda n : fs2col[n.fs][0]
         )
 
-    # TODO: spread refresh mechanizm to other widgets
+    # TODO: spread refresh mechanism to other widgets
     def queueRefresh(self):
         if self.refreshQueued:
             return
@@ -1956,7 +1956,7 @@ class CmpResTree(Treeview):
 
                 yield True
 
-                # another refreshing was queueed
+                # another refreshing was queued
                 if self.refreshQueued:
                     raise StopIteration()
 
@@ -2227,12 +2227,12 @@ class MainWindow(Tk):
 # ------------
 
 if __name__ == "__main__":
-    ap = ArgumentParser(description = "Re@l file syncronization tool.")
+    ap = ArgumentParser(description = "Re@l file synchronization tool.")
     ap.add_argument('roots',
         metavar = "D",
         type = str,
         nargs = "*",
-        help = "A root directory to syncronize"
+        help = "A root directory to synchronize"
     )
 
     args = ap.parse_args()
