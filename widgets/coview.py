@@ -9,6 +9,8 @@ if version_info[0] == 2:
 else:
     from tkinter.ttk import Treeview
 
+from collections import deque
+
 def coiid(co):
     return "co%u" % id(co)
 
@@ -61,7 +63,10 @@ class CoView(Treeview):
         s2r = d.socketsToRead
         s2w = d.socketsToWrite
 
-        stack = [("", d.queue + d.ready + d.waiting)]
+        allCo = deque(d.queue)
+        allCo.extend(d.ready)
+        allCo.extend(d.waiting)
+        stack = [("", allCo)]
 
         toDel = set()
 

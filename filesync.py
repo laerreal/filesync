@@ -110,6 +110,7 @@ from common import (
     bytes2int, int2bytes
 )
 from widgets import CoView
+from collections import deque
 
 # Actual program below
 # ====================
@@ -131,14 +132,14 @@ CO_LIMIT = 40
 class CoDisp(object):
     def __init__(self):
         self.gotten = 0
-        self.queue = []
-        self.ready = []
-        self.waiting = []
+        self.queue = deque()
+        self.ready = deque()
+        self.waiting = deque()
         self.callers = set()
         self.references = {}
         self.socketsToRead = {}
         self.socketsToWrite = {}
-        self.readySockets = []
+        self.readySockets = deque()
         self.current = None
 
         # extra self-declaring coroutine information
@@ -208,16 +209,16 @@ class CoDisp(object):
     def iteration(self):
         r = self.ready
         try:
-            yield r.pop(0), None
+            yield r.popleft(), None
         except IndexError:
             rs = self.readySockets
             try:
-                yield rs.pop(0)
+                yield rs.popleft()
             except IndexError:
                 g = self.gotten
                 if g < CO_LIMIT:
                     try:
-                        res = self.queue.pop(0), None
+                        res = self.queue.popleft(), None
                     except IndexError:
                         pass
                     else:
@@ -227,18 +228,15 @@ class CoDisp(object):
                         return
 
                 w = self.waiting
-                for co in list(w):
-                    w.remove(co)
+                l = len(w)
+                while l:
+                    l -= 1
 
-                    yield co, None
+                    yield w.popleft(), None
 
                     # a task can be waked up
-                    try:
-                        yield r.pop(0), None
-                    except IndexError:
-                        continue
-
-                    break
+                    if len(r):
+                        break
 
     def iterate(self):
         r = self.ready
@@ -270,9 +268,9 @@ class CoDisp(object):
                     c.remove(caller)
                     if g < CO_LIMIT:
                         g += 1
-                        r.insert(0, caller)
+                        r.appendleft(caller)
                     else:
-                        q.insert(0, caller)
+                        q.appendleft(caller)
                 self.gotten = g
 
                 return True
@@ -283,9 +281,10 @@ class CoDisp(object):
                 try:
                     coRefs = refs[ret]
                 except KeyError:
-                    refs[ret] = [co]
-                else:
-                    coRefs.append(co)
+                    coRefs = deque()
+                    refs[ret] = coRefs
+
+                coRefs.append(co)
 
                 if ret in c:
                     self.gotten -= 1
