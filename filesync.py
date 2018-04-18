@@ -33,6 +33,8 @@ def printnnl(arg):
 """,
         globals()
     )
+
+    from queue import Empty
 else:
     # Python 2
     exec("from Tkinter import " + TK_IMPORT)
@@ -49,6 +51,8 @@ def printnnl(arg):
 """,
         globals()
     )
+
+    from Queue import Empty
 
 # Any python
 from types import GeneratorType
@@ -101,7 +105,6 @@ from multiprocessing import (
     Process,
     Queue
 )
-from queue import Empty
 from common import (
     Stateful,
     bytes2int, int2bytes
