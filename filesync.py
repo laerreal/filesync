@@ -2210,14 +2210,17 @@ class MainWindow(Tk):
                 # print("sleep") # disp-1
                 sleep(0.01)
 
+    def __on_destroy(self, event):
+        self.__operation = False
+
     def mainloop(self):
-        try:
-            while True:
-                self.update_idletasks()
-                self.update()
-                self.iterateCoroutines()
-        except TclError:
-            print(format_exc())
+        self.__operation = True
+        root.bind("<Destroy>", self.__on_destroy)
+
+        while self.__operation:
+            self.iterateCoroutines()
+            self.update_idletasks()
+            self.update()
 
 # Main program
 # ------------
