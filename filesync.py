@@ -1043,7 +1043,48 @@ DIPY = 100
 # File CheckSum Block Size
 FCSBS = 4 << 10 # 4 KiB
 
-class LocalFS(FS): pass
+class LocalFS(FS):
+    def coGetNodes(self, directory):
+        # node paths
+        nps = listdir(directory.ep)
+
+        yield True
+
+        files = {}
+        dirs = {}
+        nodes = {}
+        skipped = 0
+
+        y = DIPY
+        for np in nps:
+            if y <= 0:
+                yield True
+                y = DIPY
+            else:
+                y -= 1
+
+            ep = join(directory.ep, np)
+            if isdir(ep):
+                n = DirectoryInfo(np, directory = directory)
+                dirs[np] = n
+                self.eCtx.notify(FSEvent.DIRECTORY_FOUND, n)
+            elif isfile(ep):
+                n = FileInfo(np, directory = directory)
+                files[np] = n
+                self.eCtx.notify(FSEvent.FILE_FOUND, n)
+            else:
+                self.eCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, directory,
+                    path = np
+                )
+                skipped += 1
+                continue
+
+            n._ep = ep
+            nodes[np] = n
+
+        directory.files, directory.dirs, directory.nodes = files, dirs, nodes
+        directory.skipped = skipped
+        self.eCtx.notify(FSEvent.DIRECTORY_SCANNED, directory)
 
 class LinuxFS(LocalFS):
     def __init__(self, effectiveRootPath):
@@ -1137,48 +1178,6 @@ class LinuxFS(LocalFS):
         file.checksums = tuple(checksums)
 
         self.eCtx.notify(FSEvent.FILE_CHECKSUMS_GOT, file)
-
-    def coGetNodes(self, directory):
-        # node paths
-        nps = listdir(directory.ep)
-
-        yield True
-
-        files = {}
-        dirs = {}
-        nodes = {}
-        skipped = 0
-
-        y = DIPY
-        for np in nps:
-            if y <= 0:
-                yield True
-                y = DIPY
-            else:
-                y -= 1
-
-            ep = join(directory.ep, np)
-            if isdir(ep):
-                n = DirectoryInfo(np, directory = directory)
-                dirs[np] = n
-                self.eCtx.notify(FSEvent.DIRECTORY_FOUND, n)
-            elif isfile(ep):
-                n = FileInfo(np, directory = directory)
-                files[np] = n
-                self.eCtx.notify(FSEvent.FILE_FOUND, n)
-            else:
-                self.eCtx.notify(FSEvent.DIRECTORY_NODE_SKIPPED, directory,
-                    path = np
-                )
-                skipped += 1
-                continue
-
-            n._ep = ep
-            nodes[np] = n
-
-        directory.files, directory.dirs, directory.nodes = files, dirs, nodes
-        directory.skipped = skipped
-        self.eCtx.notify(FSEvent.DIRECTORY_SCANNED, directory)
 
 def pGetChecksums(ep, fsize, q):
     f = open(ep, "rb", FCSBS << 2)
@@ -1300,8 +1299,6 @@ class WindowsFS(LocalFS):
         file.checksums = tuple(checksums)
 
         self.eCtx.notify(FSEvent.FILE_CHECKSUMS_GOT, file)
-
-    coGetNodes = LinuxFS.coGetNodes
 
 class FSNode(object):
     def __init__(self, directoryPath, directory = None, fileSystem = None):
