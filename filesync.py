@@ -496,6 +496,9 @@ class ClientInfo(object):
                 yield n.attributeGetter("nodes")
                 nodes = n.nodes
 
+            if name == ".":
+                continue
+
             try:
                 n = nodes[name]
             except KeyError:
