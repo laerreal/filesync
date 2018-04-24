@@ -12,10 +12,10 @@ if version_info[0] == 2:
 else:
     byte2int = int
 
-def bytes2int(bytes):
+def bytes2int(_bytes):
     result = 0
 
-    for b in bytes:
+    for b in _bytes:
         result = result * 256 + byte2int(b)
 
     return result
