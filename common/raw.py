@@ -16,7 +16,7 @@ def bytes2int(bytes):
     result = 0
 
     for b in bytes:
-        result = result * 256 + int(b)
+        result = result * 256 + byte2int(b)
 
     return result
 
