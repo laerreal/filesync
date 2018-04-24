@@ -471,25 +471,16 @@ class ClientInfo(object):
         pass
 
     # node is list used to return value from coroutine
-    def coLookUpNode(self, effectivePath, node):
+    def coLookUpNode(self, relativePath, node):
         # look up node by effective path
         fs = self.fs
         root = fs.root
 
-        uni_rdp = fs.split(root.dp)
-        uni_ep = fs.split(effectivePath)
-
-        uni_ep_pfx = uni_ep[:len(uni_rdp)]
-        uni_rp = uni_ep[len(uni_rdp):]
-
-        if uni_rdp != uni_ep_pfx:
-            raise RuntimeError(
-                "Client requested other root: %s" % fs.join(uni_ep_pfx)
-            )
+        uni_relp = fs.split(relativePath)
 
         n = root
 
-        for name in uni_rp:
+        for name in uni_relp:
             try:
                 nodes = n.nodes
             except AttributeError:
@@ -523,11 +514,10 @@ class ClientInfo(object):
 
     # Work state function
 
-    # ep -  Effective Path
-    # TODO: use relative path
-    def coGet(self, Attr, ep):
+    # relp -  Relative Path
+    def coGet(self, Attr, relp):
         node = []
-        yield self.coLookUpNode(ep, node)
+        yield self.coLookUpNode(relp, node)
         n = node[0]
 
         # get requested attribute
@@ -540,11 +530,11 @@ class ClientInfo(object):
 
         val = dumps(val)
 
-        self.output.append(RetAttrMessage(ep, Attr, val))
+        self.output.append(RetAttrMessage(relp, Attr, val))
 
-    def coGetNodes(self, ep):
+    def coGetNodes(self, relp):
         node = []
-        yield self.coLookUpNode(ep, node)
+        yield self.coLookUpNode(relp, node)
         n = node[0]
 
         # get requested attribute
@@ -562,29 +552,30 @@ class ClientInfo(object):
         output = self.output
 
         output.extend([
-            RetAttrMessage(ep, "Nodes", str(total).encode("utf-8")),
-            RetAttrMessage(ep, "Skipped", str(skipped).encode("utf-8")),
+            RetAttrMessage(relp, "Nodes", str(total).encode("utf-8")),
+            RetAttrMessage(relp, "Skipped", str(skipped).encode("utf-8")),
         ])
 
-        output.extend(RetAttrMessage(ep, "File", f.dp.encode("utf-8")) \
+        output.extend(RetAttrMessage(relp, "File", f.dp.encode("utf-8")) \
             for f in files.values()
         )
 
-        output.extend(RetAttrMessage(ep, "Dir", d.dp.encode("utf-8")) \
+        output.extend(RetAttrMessage(relp, "Dir", d.dp.encode("utf-8")) \
             for d in dirs.values()
         )
 
 
     def handle_get_Work(self, content):
-        attr, ep = content.split(b"(", 1)
+        attr, relp_raw = content.split(b"(", 1)
         attr = decode_str(attr)
-        ep = ep.decode("utf-8")
+        relp_b = relp_raw.rstrip(b"\x00")
+        relp = relp_b.decode("utf-8")
 
         # print("queue %s of %s" % (attr, ep)) # net-1
         if attr == "Nodes":
-            self.server.coDisp.enqueue(self.coGetNodes(ep))
+            self.server.coDisp.enqueue(self.coGetNodes(relp))
         else:
-            self.server.coDisp.enqueue(self.coGet(attr, ep))
+            self.server.coDisp.enqueue(self.coGet(attr, relp))
 
     def onMessage(self, inMsg):
         handler = decode_str(inMsg._type)
@@ -800,13 +791,18 @@ class RemoteNodesReceiver():
         if msg._type != b"ret":
             return
 
-        Attr, ep_data = msg.content.split(b"(", 1)
-        ep, data = ep_data.split(b"\0", 1)
+        Attr, relp_data = msg.content.split(b"(", 1)
+        relp_b, data = relp_data.split(b"\0", 1)
 
         node = self.node
 
-        ep = ep.decode("utf-8")
-        if ep != node.ep:
+        relp = relp_b.decode("utf-8")
+        node_relp = node.ep[len(self.fs.root.dp):]
+
+        if not node_relp:
+            node_relp = "."
+
+        if relp != node_relp:
             return
 
         Attr = decode_str(Attr)
@@ -871,13 +867,15 @@ class RemoteAttrReceiver():
         if msg._type != b"ret":
             return
 
-        Attr, ep_data = msg.content.split(b"(", 1)
-        ep, data = ep_data.split(b"\0", 1)
+        Attr, relp_data = msg.content.split(b"(", 1)
+        relp_b, data = relp_data.split(b"\0", 1)
 
         node = self.node
 
-        ep = ep.decode("utf-8")
-        if ep != node.ep:
+        relp = relp_b.decode("utf-8")
+        node_relp = node.ep[len(self.fs.root.dp):]
+
+        if relp != node_relp:
             return
 
         data = loads(data)
@@ -1006,8 +1004,15 @@ class RemoteFS(FS):
             coDisp.enqueue(self.coReceiver())
             self.started = True
 
-        ep = node.ep
-        reqMsg = GetAttrMessage(ep, Attr)
+        rdp = self.root.dp
+        rdp_len = len(rdp)
+
+        relp = node.ep[rdp_len:]
+
+        if not relp:
+            relp = "."
+
+        reqMsg = GetAttrMessage(relp, Attr)
         self.outMsgs.append(reqMsg)
 
         eCtx = self.eCtx
