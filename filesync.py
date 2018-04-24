@@ -355,7 +355,7 @@ class Message(object):
             fullLength = len(data) + 4
             extra = MSG_MIN_LENGTH - fullLength
             if extra > 0:
-                data += b" " * extra
+                data += bytes(extra)
                 fullLength = MSG_MIN_LENGTH
 
             self.chunk = int2bytes(htonl(fullLength), 4) + data
