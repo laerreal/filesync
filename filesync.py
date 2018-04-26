@@ -1322,6 +1322,21 @@ class FSNode(object):
         self.req = {}
 
     @property
+    def uep(self):
+        "unified effective path"
+        try:
+            return self.__uep
+        except AttributeError:
+            try:
+                d = self.d
+            except AttributeError:
+                uep = [self.dp]
+            else:
+                uep = d.uep + [self.dp]
+            self.__uep = uep
+            return uep
+
+    @property
     def ep(self):
         try:
             return self._ep
