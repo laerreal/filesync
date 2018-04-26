@@ -471,12 +471,12 @@ class ClientInfo(object):
         pass
 
     # node is list used to return value from coroutine
-    def coLookUpNode(self, relativePath, node):
+    def coLookUpNode(self, netRelativePath, node):
         # look up node by effective path
         fs = self.fs
         root = fs.root
 
-        uni_relp = fs.split(relativePath)
+        uni_relp = netRelativePath.split("/")
 
         n = root
 
@@ -515,9 +515,9 @@ class ClientInfo(object):
     # Work state function
 
     # relp -  Relative Path
-    def coGet(self, Attr, relp):
+    def coGet(self, Attr, nrelp):
         node = []
-        yield self.coLookUpNode(relp, node)
+        yield self.coLookUpNode(nrelp, node)
         n = node[0]
 
         # get requested attribute
@@ -530,11 +530,11 @@ class ClientInfo(object):
 
         val = dumps(val)
 
-        self.output.append(RetAttrMessage(relp, Attr, val))
+        self.output.append(RetAttrMessage(nrelp, Attr, val))
 
-    def coGetNodes(self, relp):
+    def coGetNodes(self, nrelp):
         node = []
-        yield self.coLookUpNode(relp, node)
+        yield self.coLookUpNode(nrelp, node)
         n = node[0]
 
         # get requested attribute
@@ -552,30 +552,30 @@ class ClientInfo(object):
         output = self.output
 
         output.extend([
-            RetAttrMessage(relp, "Nodes", str(total).encode("utf-8")),
-            RetAttrMessage(relp, "Skipped", str(skipped).encode("utf-8")),
+            RetAttrMessage(nrelp, "Nodes", str(total).encode("utf-8")),
+            RetAttrMessage(nrelp, "Skipped", str(skipped).encode("utf-8")),
         ])
 
-        output.extend(RetAttrMessage(relp, "File", f.dp.encode("utf-8")) \
+        output.extend(RetAttrMessage(nrelp, "File", f.dp.encode("utf-8")) \
             for f in files.values()
         )
 
-        output.extend(RetAttrMessage(relp, "Dir", d.dp.encode("utf-8")) \
+        output.extend(RetAttrMessage(nrelp, "Dir", d.dp.encode("utf-8")) \
             for d in dirs.values()
         )
 
 
     def handle_get_Work(self, content):
-        attr, relp_raw = content.split(b"(", 1)
+        attr, nrelp_tail = content.split(b"(", 1)
         attr = decode_str(attr)
-        relp_b = relp_raw.rstrip(b"\x00")
-        relp = relp_b.decode("utf-8")
+        nrelp_raw = nrelp_tail.rstrip(b"\x00")
+        nrelp = nrelp_raw.decode("utf-8")
 
         # print("queue %s of %s" % (attr, ep)) # net-1
         if attr == "Nodes":
-            self.server.coDisp.enqueue(self.coGetNodes(relp))
+            self.server.coDisp.enqueue(self.coGetNodes(nrelp))
         else:
-            self.server.coDisp.enqueue(self.coGet(attr, relp))
+            self.server.coDisp.enqueue(self.coGet(attr, nrelp))
 
     def onMessage(self, inMsg):
         handler = decode_str(inMsg._type)
@@ -791,18 +791,21 @@ class RemoteNodesReceiver():
         if msg._type != b"ret":
             return
 
-        Attr, relp_data = msg.content.split(b"(", 1)
-        relp_b, data = relp_data.split(b"\0", 1)
+        Attr, nrelp_raw__data = msg.content.split(b"(", 1)
+        # nrelp_raw - network relative path (RAW)
+        nrelp_raw, data = nrelp_raw__data.split(b"\0", 1)
 
         node = self.node
 
-        relp = relp_b.decode("utf-8")
-        node_relp = node.ep[len(self.fs.root.dp):]
+        nrelp = nrelp_raw.decode("utf-8")
+        urelp = nrelp.split("/")
+        node_urelp = node.uep[1:] # truncate root part
 
-        if not node_relp:
-            node_relp = "."
+        if not node_urelp:
+            # it is root
+            node_urelp = ["."]
 
-        if relp != node_relp:
+        if urelp != node_urelp:
             return
 
         Attr = decode_str(Attr)
@@ -867,15 +870,20 @@ class RemoteAttrReceiver():
         if msg._type != b"ret":
             return
 
-        Attr, relp_data = msg.content.split(b"(", 1)
-        relp_b, data = relp_data.split(b"\0", 1)
+        Attr, nrelp_raw__data = msg.content.split(b"(", 1)
+        nrelp_raw, data = nrelp_raw__data.split(b"\0", 1)
 
         node = self.node
 
-        relp = relp_b.decode("utf-8")
-        node_relp = node.ep[len(self.fs.root.dp):]
+        nrelp = nrelp_raw.decode("utf-8")
+        urelp = nrelp.split("/")
+        node_urelp = node.uep[1:] # truncate root part
 
-        if relp != node_relp:
+        if not node_urelp:
+            # it is root
+            node_urelp = ["."]
+
+        if urelp != node_urelp:
             return
 
         data = loads(data)
@@ -1004,15 +1012,15 @@ class RemoteFS(FS):
             coDisp.enqueue(self.coReceiver())
             self.started = True
 
-        rdp = self.root.dp
-        rdp_len = len(rdp)
+        urelp = node.uep[1:]
 
-        relp = node.ep[rdp_len:]
+        if not urelp:
+            urelp = (".",)
 
-        if not relp:
-            relp = "."
+        # network relative path
+        nrelp = "/".join(urelp)
 
-        reqMsg = GetAttrMessage(relp, Attr)
+        reqMsg = GetAttrMessage(nrelp, Attr)
         self.outMsgs.append(reqMsg)
 
         eCtx = self.eCtx
