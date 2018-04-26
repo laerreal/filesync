@@ -493,7 +493,7 @@ class ClientInfo(object):
             try:
                 n = nodes[name]
             except KeyError:
-                raise RuntimeError("Client requested unexisting node '%s'"
+                raise RuntimeError("Client requested nonexistent node '%s'"
                     " in '%s'" % (name, n.ep)
                 )
 
