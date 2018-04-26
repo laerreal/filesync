@@ -1338,17 +1338,7 @@ class FSNode(object):
 
     @property
     def ep(self):
-        try:
-            return self._ep
-        except AttributeError:
-            try:
-                d = self.d
-            except AttributeError:
-                ep = self.dp
-            else:
-                ep = join(d.ep, self.dp)
-            self._ep = ep
-            return ep
+        return join(*self.uep)
 
     def attributeGetter(self, attr):
         assert attr not in self.__dict__, (
