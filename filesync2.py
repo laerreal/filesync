@@ -42,6 +42,8 @@ class node_name(object):
 
         self._consistent_ = False
 
+        self._iid = None
+
     @property
     def root_flags(self):
         return self._root_flags
@@ -423,13 +425,8 @@ if __name__ == "__main__":
     iid2node = {}
     node2iid = {}
 
-    def tree_updater():
-        if iid2node:
-            tv.delete(*iid2node.keys())
-            iid2node.clear()
-            node2iid.clear()
-
-        queue = list(reversed(list(root_dir.values())))
+    def tree_updater(_dir):
+        queue = list(reversed(list(_dir.values())))
 
         while queue:
             yield
@@ -454,28 +451,60 @@ if __name__ == "__main__":
             if not node.ready:
                 tags.append("notready")
 
-            iid = tv.insert(parent_iid, "end",
-                text = node.name.decode(FILE_NAME_ENCODING),
-                tags = tags,
-                values = values
-            )
-            iid2node[iid] = node
-            node2iid[node] = iid
+            iid = node._iid
+            if iid is None:
+                iid = tv.insert(parent_iid, "end",
+                    text = node.name.decode(FILE_NAME_ENCODING),
+                    tags = tags,
+                    values = values
+                )
+                iid2node[iid] = node
+                node2iid[node] = iid
+                node._iid = iid
+            else:
+                tv.item(iid, tags = tags, values = values)
 
             if isinstance(node, directory):
                 for subnode in node.values():
                     queue.insert(0, subnode)
 
+
+    def cancel_task(t):
+        try:
+            tasks.remove(t)
+        except ValueError:
+            pass # already finished and removed
+
     current_tree_updater = None
     def update_tree():
         global current_tree_updater
         if current_tree_updater is not None:
-            try:
-                tasks.remove(current_tree_updater)
-            except ValueError:
-                pass # already finished and removed
-        current_tree_updater = tree_updater()
+            cancel_task(current_tree_updater)
+        current_tree_updater = tree_updater(root_dir)
         tasks.insert(0, current_tree_updater)
+
+    tk.after(100, update_tree)
+
+    target_tree_updater = None
+    def on_treeview_open(*_):
+        global target_tree_updater
+
+        # targeted update
+        iid = tv.focus()
+        if not iid:
+            return
+
+        node = iid2node[iid]
+        if not isinstance(node, directory):
+            return
+
+        if target_tree_updater is not None:
+            cancel_task(target_tree_updater)
+
+        target_tree_updater = tree_updater(node)
+        tasks.insert(0, target_tree_updater)
+
+    tv.bind("<<TreeviewOpen>>", on_treeview_open)
 
     bt_updatre_tree = Button(bt_frame,
         text = "Update tree",
