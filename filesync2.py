@@ -11,6 +11,8 @@ from argparse import (
     ArgumentParser
 )
 from six.moves.tkinter import (
+    Label,
+    LEFT,
     RIGHT,
     Button,
     Scrollbar,
@@ -512,6 +514,9 @@ if __name__ == "__main__":
     )
     bt_updatre_tree.pack(side = RIGHT)
 
+    lb_tasks = Label(bt_frame)
+    lb_tasks.pack(side = LEFT)
+
     # Tk main loop
     working = True
 
@@ -536,6 +541,8 @@ if __name__ == "__main__":
                 else:
                     tasks.insert(0, t)
             i -= 1
+
+        lb_tasks.config(text = str(len(tasks)))
 
     tk.destroy()
 
