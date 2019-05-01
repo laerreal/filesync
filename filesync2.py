@@ -30,6 +30,7 @@ class node_name(object):
     def __init__(self, name, container, full_path):
         self.name = name
         self.root_flags = 0
+        self.roots = 0
         self.full_path = full_path
         self.container = None
 
@@ -207,6 +208,8 @@ def build_root_tree(root_path, root_dir, root_flag):
 
         _dir.account_names(nodes)
 
+        folders = []
+
         for node_name in nodes:
             full_path = join(_path, node_name)
             if isdir(full_path):
@@ -216,8 +219,8 @@ def build_root_tree(root_path, root_dir, root_flag):
                     node = directory(node_name, _dir, full_path)
 
                 node.root_flags |= root_flag
-                queue.insert(0, (full_path, node))
-
+                node.roots += 1
+                folders.append((full_path, node))
             elif isfile(full_path):
                 if node_name in _dir:
                     node = _dir[node_name]
@@ -225,9 +228,16 @@ def build_root_tree(root_path, root_dir, root_flag):
                     node = file(node_name, _dir, full_path)
 
                 node.root_flags |= root_flag
+                node.roots += 1
                 node.ready = True
             else:
                 print("Node of unknown kind: %s" % full_path)
+
+        # first analyze folders which do exists in much of trees
+        folders = sorted(folders, key = lambda f: f[1].roots)
+        # if len(folders) > 1:
+        #     assert folders[0][1].roots <= folders[-1][1].roots
+        queue[:0] = folders
 
 
 COLOR_NODE_ABSENT = "#ffded8"
