@@ -89,35 +89,51 @@ DEBUG_TREE = False
 
 
 def build_common_tree(root_dir, roots):
+    builders = []
     for root_idx, root in enumerate(roots):
         root_flag = 1 << root_idx
-        queue = [(sep.join(root), root_dir)]
+        builders.append(build_root_tree(root, root_dir, root_flag))
 
-        while queue:
-            yield # a pause
+    # TODO: CoDispatcher's call mechanics
+    while builders:
+        yield
+        b = builders.pop(0)
+        try:
+            next(b)
+        except StopIteration:
+            pass
+        else:
+            builders.append(b)
 
-            _path, _dir = queue.pop()
 
-            for node_name in listdir(_path):
-                full_path = join(_path, node_name)
-                if isdir(full_path):
-                    if node_name in _dir:
-                        node = _dir[node_name]
-                    else:
-                        node = directory(node_name, _dir, full_path)
+def build_root_tree(root_path, root_dir, root_flag):
+    queue = [(sep.join(root_path), root_dir)]
 
-                    node.root_flags |= root_flag
-                    queue.insert(0, (full_path, node))
+    while queue:
+        yield # a pause
 
-                elif isfile(full_path):
-                    if node_name in _dir:
-                        node = _dir[node_name]
-                    else:
-                        node = file(node_name, _dir, full_path)
+        _path, _dir = queue.pop()
 
-                    node.root_flags |= root_flag
+        for node_name in listdir(_path):
+            full_path = join(_path, node_name)
+            if isdir(full_path):
+                if node_name in _dir:
+                    node = _dir[node_name]
                 else:
-                    print("Node of unknown kind: %s" % full_path)
+                    node = directory(node_name, _dir, full_path)
+
+                node.root_flags |= root_flag
+                queue.insert(0, (full_path, node))
+
+            elif isfile(full_path):
+                if node_name in _dir:
+                    node = _dir[node_name]
+                else:
+                    node = file(node_name, _dir, full_path)
+
+                node.root_flags |= root_flag
+            else:
+                print("Node of unknown kind: %s" % full_path)
 
 
 if __name__ == "__main__":
@@ -169,7 +185,16 @@ if __name__ == "__main__":
     tree_w.columnconfigure(0, weight = 1)
     tree_w.columnconfigure(1, weight = 0)
 
-    tv = Treeview(tree_w)
+    # columns for node presence marks
+    roots_cid = ["root%d" % i for i in range(len(roots))]
+
+    tv = Treeview(tree_w,
+        columns = roots_cid
+    )
+
+    for rcid in roots_cid:
+        tv.column(rcid, stretch = False, width = 20)
+
     tv.grid(row = 0, column = 0, sticky = "NESW")
 
     h_sb = Scrollbar(tree_w,
@@ -211,7 +236,16 @@ if __name__ == "__main__":
 
             parent_iid = node2iid.get(node.container, "")
 
-            iid = tv.insert(parent_iid, "end", text = node.name)
+            values = []
+
+            for i in range(len(roots)):
+                f = 1 << i
+                values.append("+" if f & node.root_flags else "-")
+
+            iid = tv.insert(parent_iid, "end",
+                text = node.name,
+                values = values
+            )
             iid2node[iid] = node
             node2iid[node] = iid
 
