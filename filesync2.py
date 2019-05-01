@@ -42,6 +42,76 @@ class directory(node_name):
         super(directory, self).__init__(*a, **kw)
         self.node_list = []
         self.node_dict = {}
+        self._ready_children = 0
+
+        # name set allows to estimate number of items within before they will
+        # be analyzed.
+        self._total_names = set()
+
+        # Readiness of a directory may be changed because of multiple
+        # reasons.
+        # This intermediate, bottleneck value (a `property`) ensures that the
+        # `container` is notified about last readiness state and this is done
+        # *only once* for current state.
+        self._ready_internal = False
+
+    @property
+    def ready(self):
+        return self._ready_children >= self.total_items
+
+    @property
+    def total_items(self):
+        return len(self._total_names)
+
+    @property
+    def ready_children(self):
+        return self._ready_children
+
+    @ready_children.setter
+    def ready_children(self, value):
+        if value == self._ready_children:
+            return
+
+        self._ready_children = value
+        self.ready_internal = self.ready
+
+    @property
+    def ready_internal(self):
+        raise RuntimeWarning("Must not be read")
+
+    @ready_internal.setter
+    def ready_internal(self, value):
+        if value == self._ready_internal:
+            return
+
+        self._ready_internal = value
+
+        c = self.container
+
+        if c is None:
+            return
+
+        if value:
+            c.ready_children += 1
+        else:
+            c.ready_children -= 1
+
+    def account_names(self, names):
+        s = self._total_names
+        prev_len = len(s)
+        if names:
+            s.update(names)
+            if prev_len == len(s):
+                return
+        elif prev_len != 0:
+            return
+        # else:
+        # if folder is empty it will never be written a `ready_children` value.
+        # Because it is done by nodes within.
+        # Such a folder is always ready and we should notify the container
+        # about this at least once.
+
+        self.ready_internal = self.ready
 
     def append(self, name, node):
         if name in self.node_dict:
@@ -81,7 +151,26 @@ class directory(node_name):
         return "\n".join(self.print_subdirs())
 
 class file(node_name):
-    pass
+
+    def __init__(self, *a, **kw):
+        super(file, self).__init__(*a, **kw)
+
+        self._ready = False
+
+    @property
+    def ready(self):
+        return self._ready
+
+    @ready.setter
+    def ready(self, value):
+        if value == self._ready:
+            return
+
+        self._ready = value
+        if value:
+            self.container.ready_children += 1
+        else:
+            self.container.ready_children -= 1
 
 
 DEBUG_PATHS = True
@@ -114,7 +203,11 @@ def build_root_tree(root_path, root_dir, root_flag):
 
         _path, _dir = queue.pop()
 
-        for node_name in listdir(_path):
+        nodes = listdir(_path)
+
+        _dir.account_names(nodes)
+
+        for node_name in nodes:
             full_path = join(_path, node_name)
             if isdir(full_path):
                 if node_name in _dir:
@@ -132,8 +225,13 @@ def build_root_tree(root_path, root_dir, root_flag):
                     node = file(node_name, _dir, full_path)
 
                 node.root_flags |= root_flag
+                node.ready = True
             else:
                 print("Node of unknown kind: %s" % full_path)
+
+
+COLOR_NODE_ABSENT = "#ffded8"
+COLOR_NODE_NOT_READY = "gray"
 
 
 if __name__ == "__main__":
@@ -169,6 +267,8 @@ if __name__ == "__main__":
 
     root_dir = directory("", None, "")
 
+    ALL_ROOTS = (1 << len(roots)) - 1
+
     tree_builder = build_common_tree(root_dir, roots)
 
     # GUI
@@ -191,6 +291,9 @@ if __name__ == "__main__":
     tv = Treeview(tree_w,
         columns = roots_cid
     )
+
+    tv.tag_configure("absent", background = COLOR_NODE_ABSENT)
+    tv.tag_configure("notready", foreground = COLOR_NODE_NOT_READY)
 
     for rcid in roots_cid:
         tv.column(rcid, stretch = False, width = 20)
@@ -242,8 +345,16 @@ if __name__ == "__main__":
                 f = 1 << i
                 values.append("+" if f & node.root_flags else "-")
 
+            tags = []
+
+            if node.root_flags != ALL_ROOTS:
+                tags.append("absent")
+            if not node.ready:
+                tags.append("notready")
+
             iid = tv.insert(parent_iid, "end",
                 text = node.name,
+                tags = tags,
                 values = values
             )
             iid2node[iid] = node
