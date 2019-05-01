@@ -25,6 +25,9 @@ from six.moves.tkinter_ttk import (
 )
 
 
+FILE_NAME_ENCODING = "cp1251"
+
+
 class node_name(object):
 
     def __init__(self, name, container, full_path):
@@ -363,7 +366,7 @@ if __name__ == "__main__":
                 tags.append("notready")
 
             iid = tv.insert(parent_iid, "end",
-                text = node.name,
+                text = node.name.decode(FILE_NAME_ENCODING),
                 tags = tags,
                 values = values
             )
