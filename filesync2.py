@@ -181,22 +181,18 @@ DEBUG_PATHS = True
 DEBUG_TREE = False
 
 
+# TODO: CoTaskManager
+tasks = []
+
 def build_common_tree(root_dir, roots):
-    builders = []
+    global tasks
+
     for root_idx, root in enumerate(roots):
         root_flag = 1 << root_idx
-        builders.append(build_root_tree(root, root_dir, root_flag))
+        # TODO: CoDispatcher's call mechanics
+        tasks.insert(0, build_root_tree(root, root_dir, root_flag))
 
-    # TODO: CoDispatcher's call mechanics
-    while builders:
-        yield
-        b = builders.pop(0)
-        try:
-            next(b)
-        except StopIteration:
-            pass
-        else:
-            builders.append(b)
+    yield # must be an generator
 
 
 def build_root_tree(root_path, root_dir, root_flag):
@@ -283,11 +279,9 @@ if __name__ == "__main__":
     ALL_ROOTS = (1 << len(roots)) - 1
 
     tree_builder = build_common_tree(root_dir, roots)
+    tasks.append(tree_builder)
 
     # GUI
-
-    # TODO: CoTaskManager
-    tasks = [tree_builder]
 
     tk = Tk()
     tk.title("FileSync v2")
@@ -386,7 +380,7 @@ if __name__ == "__main__":
             except ValueError:
                 pass # already finished and removed
         current_tree_updater = tree_updater()
-        tasks.append(current_tree_updater)
+        tasks.insert(0, current_tree_updater)
 
     bt_updatre_tree = Button(bt_frame,
         text = "Update tree",
@@ -409,15 +403,14 @@ if __name__ == "__main__":
 
         i = 10
         while i:
-            life_tasks = []
-            for t in tasks:
+            if tasks:
+                t = tasks.pop()
                 try:
                     next(t)
                 except StopIteration:
                     print(t.__name__ + " finished")
                 else:
-                    life_tasks.append(t)
-            tasks[:] = life_tasks
+                    tasks.insert(0, t)
             i -= 1
 
     tk.destroy()
