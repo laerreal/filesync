@@ -32,13 +32,48 @@ class node_name(object):
 
     def __init__(self, name, container, full_path):
         self.name = name
-        self.root_flags = 0
+        self._root_flags = 0
         self.roots = 0
         self.full_path = full_path
         self.container = None
 
         if container is not None:
             container.append(name, self)
+
+        self._consistent_ = False
+
+    @property
+    def root_flags(self):
+        return self._root_flags
+
+    @root_flags.setter
+    def root_flags(self, bits):
+        if bits == self._root_flags:
+            return
+
+        self._root_flags = bits
+
+        # update consistency
+        self._update_consistency()
+
+    @property
+    def consistent_(self):
+        raise RuntimeWarning("Must not be read")
+
+    @consistent_.setter
+    def consistent_(self, val):
+        if val == self._consistent_:
+            return
+        self._consistent_ = val
+
+        c = self.container
+        if c is None:
+            return
+
+        if val:
+            c.consistent_children += 1
+        else:
+            c.consistent_children -= 1
 
 class directory(node_name):
 
@@ -58,6 +93,41 @@ class directory(node_name):
         # `container` is notified about last readiness state and this is done
         # *only once* for current state.
         self._ready_internal = False
+
+        self._consistent_children = 0
+
+        self._update_consistency()
+
+    @property
+    def consistent_children(self):
+        return self._consistent_children
+
+    @consistent_children.setter
+    def consistent_children(self, value):
+        if value == self._consistent_children:
+            return
+        self._consistent_children = value
+        self.consistent_ = self.consistent
+
+    @property
+    def consistent(self):
+        """
+A directory is consistent if:
+    & all its nodes are consistent
+    & it presents in all trees
+        """
+
+        if self.consistent_children != self.total_items:
+            return False
+        c = self.container
+        if c is None:
+            return True
+        return c._root_flags == self._root_flags
+
+    def _update_consistency(self):
+        for n in self.node_list:
+            n._update_consistency()
+        self.consistent_ = self.consistent
 
     @property
     def ready(self):
@@ -161,6 +231,8 @@ class file(node_name):
 
         self._ready = False
 
+        self._update_consistency()
+
     @property
     def ready(self):
         return self._ready
@@ -175,6 +247,22 @@ class file(node_name):
             self.container.ready_children += 1
         else:
             self.container.ready_children -= 1
+
+    @property
+    def consistent(self):
+        """
+A file is consistent if:
+    & it presents in all trees
+    & TODO
+        """
+
+        c = self.container
+        if c is None:
+            return True
+        return self._root_flags == c._root_flags
+
+    def _update_consistency(self):
+        self.consistent_ = self.consistent
 
 
 DEBUG_PATHS = True
@@ -241,6 +329,7 @@ def build_root_tree(root_path, root_dir, root_flag):
 
 COLOR_NODE_ABSENT = "#ffded8"
 COLOR_NODE_NOT_READY = "gray"
+COLOR_NODE_INCONSISTENT = "#ffdd93"
 
 
 if __name__ == "__main__":
@@ -278,6 +367,8 @@ if __name__ == "__main__":
 
     ALL_ROOTS = (1 << len(roots)) - 1
 
+    root_dir.root_flags = ALL_ROOTS
+
     tree_builder = build_common_tree(root_dir, roots)
     tasks.append(tree_builder)
 
@@ -301,6 +392,7 @@ if __name__ == "__main__":
 
     tv.tag_configure("absent", background = COLOR_NODE_ABSENT)
     tv.tag_configure("notready", foreground = COLOR_NODE_NOT_READY)
+    tv.tag_configure("inconsistent", background = COLOR_NODE_INCONSISTENT)
 
     for rcid in roots_cid:
         tv.column(rcid, stretch = False, width = 20)
@@ -356,6 +448,9 @@ if __name__ == "__main__":
 
             if node.root_flags != ALL_ROOTS:
                 tags.append("absent")
+            else:
+                if not node.consistent:
+                    tags.append("inconsistent")
             if not node.ready:
                 tags.append("notready")
 
