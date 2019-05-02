@@ -9,6 +9,8 @@ from os.path import \
     exists
 
 from os import \
+    mkdir, \
+    remove, \
     sep, \
     chdir
 
@@ -74,7 +76,7 @@ class FSTestFile(FSTestNode):
             open(self.name, "w").close()
 
     def remove(self):
-        cmd(["rm", self.name])
+        remove(self.name)
 
     def __hash__(self):
         return hash(self.name)
@@ -108,10 +110,10 @@ class FSTestDir(FSTestNode):
         if not exists(self.name):
             return
         self.clear()
-        cmd(["rmdir", self.name])
+        remove(self.name)
 
     def generate(self):
-        cmd(["mkdir", self.name])
+        mkdir(self.name)
 
     def __deepcopy__(self, *args):
         return FSTestDir(
