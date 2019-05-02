@@ -204,11 +204,15 @@ if __name__ == "__main__":
         stdout.write = writeFlush
 
     root = FSTestDir("test1", dcp(baseFS))
+    root["root"].addChild(D("folderInTest1Only"))
 
     root.remove()
     updateFS(root, verbose = verbose)
 
     root = FSTestDir("test2", dcp(baseFS))
+    root["root"]["пустаяПапакаСКириллицейВНазвании"].addChild(
+        F("fileInTest2Only.txt", size = 22)
+    )
 
     # Do several modifications
     root[join("root", "soldFiles", "smallFile")].size += 13
