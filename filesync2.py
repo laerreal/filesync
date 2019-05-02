@@ -1,4 +1,5 @@
 from os.path import (
+    getmtime,
     isfile,
     isdir,
     join,
@@ -25,9 +26,16 @@ from six.moves.tkinter import (
 from six.moves.tkinter_ttk import (
     Treeview
 )
+from collections import (
+    defaultdict
+)
 
 
 FILE_NAME_ENCODING = "cp1251"
+
+
+DIFF_CODE_NODES = "N"
+DIFF_CODE_MOD_TIME = "T"
 
 
 class node_name(object):
@@ -101,6 +109,12 @@ class directory(node_name):
         self._consistent_children = 0
 
         self._update_consistency()
+
+    @property
+    def diffs(self):
+        if self.consistent:
+            return ""
+        return DIFF_CODE_NODES
 
     @property
     def consistent_children(self):
@@ -228,14 +242,46 @@ A directory is consistent if:
     def __str__(self):
         return "\n".join(self.print_subdirs())
 
+
+class FileInfo(object):
+
+    def __init__(self, f):
+        self.file = f
+        self.mtime = None # modification time
+        self.full_name = None
+
+
+def _diff(_set, code):
+    if None in _set:
+        # `None` means some values are unknown for now.
+        # But, if there is at least two different values except `None` then the
+        # difference definitely takes place.
+        return code + ("" if len(_set) > 2 else "?")
+    else:
+        return code if len(_set) > 1 else ""
+
 class file(node_name):
 
     def __init__(self, *a, **kw):
         super(file, self).__init__(*a, **kw)
 
+        # root_idx -> FileInfo
+        self.infos = defaultdict(lambda : FileInfo(self))
+
         self._ready = False
 
         self._update_consistency()
+
+    @property
+    def diffs(self):
+        res = []
+
+        mtimes = set(inf.mtime for inf in self.infos.values())
+        d = _diff(mtimes, DIFF_CODE_MOD_TIME)
+        if d:
+            res.append(d)
+
+        return " ".join(res)
 
     @property
     def ready(self):
@@ -280,14 +326,22 @@ def build_common_tree(root_dir, roots):
     global tasks
 
     for root_idx, root in enumerate(roots):
-        root_flag = 1 << root_idx
         # TODO: CoDispatcher's call mechanics
-        tasks.insert(0, build_root_tree(root, root_dir, root_flag))
+        tasks.insert(0, build_root_tree(root, root_dir, root_idx))
 
     yield # must be an generator
 
 
-def build_root_tree(root_path, root_dir, root_flag):
+def by_roots(task):
+    return task[1].roots
+
+
+def build_root_tree(root_path, root_dir, root_idx):
+    global files_queue
+    global scanned_roots
+
+    root_flag = 1 << root_idx
+
     queue = [(sep.join(root_path), root_dir)]
 
     while queue:
@@ -300,6 +354,7 @@ def build_root_tree(root_path, root_dir, root_flag):
         _dir.account_names(nodes)
 
         folders = []
+        files = []
 
         for node_name in nodes:
             full_path = join(_path, node_name)
@@ -321,14 +376,43 @@ def build_root_tree(root_path, root_dir, root_flag):
                 node.root_flags |= root_flag
                 node.roots += 1
                 node.ready = True
+
+                files.append((full_path, node, root_idx))
             else:
                 print("Node of unknown kind: %s" % full_path)
 
         # first analyze folders which do exists in much of trees
-        folders = sorted(folders, key = lambda f: f[1].roots)
+        folders = sorted(folders, key = by_roots)
         # if len(folders) > 1:
         #     assert folders[0][1].roots <= folders[-1][1].roots
         queue[:0] = folders
+
+        files_by_roots = sorted(files, key = by_roots)
+        files_queue[:0] = files_by_roots
+
+    scanned_roots |= root_flag
+
+
+files_queue = []
+scanned_roots = 0
+
+def file_scaner():
+    global files_queue
+    global scanned_roots
+    global ALL_ROOTS
+
+    while files_queue or ALL_ROOTS ^ scanned_roots:
+        yield
+
+        if not files_queue:
+            continue
+
+        full_name, node, root_idx = files_queue.pop()
+
+        fi = node.infos[root_idx]
+
+        fi.full_name = full_name
+        fi.mtime = getmtime(full_name)
 
 
 COLOR_NODE_ABSENT = "#ffded8"
@@ -376,6 +460,8 @@ if __name__ == "__main__":
     tree_builder = build_common_tree(root_dir, roots)
     tasks.append(tree_builder)
 
+    tasks.append(file_scaner())
+
     # GUI
 
     tk = Tk()
@@ -391,7 +477,9 @@ if __name__ == "__main__":
     roots_cid = ["root%d" % i for i in range(len(roots))]
 
     tv = Treeview(tree_w,
-        columns = roots_cid
+        columns = roots_cid + [
+            "diffs"
+        ]
     )
 
     tv.tag_configure("absent", background = COLOR_NODE_ABSENT)
@@ -442,6 +530,8 @@ if __name__ == "__main__":
             for i in range(len(roots)):
                 f = 1 << i
                 values.append("+" if f & node.root_flags else "-")
+
+            values.append(node.diffs)
 
             tags = []
 
