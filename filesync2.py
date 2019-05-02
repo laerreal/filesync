@@ -29,6 +29,9 @@ from six.moves.tkinter_ttk import (
 from collections import (
     defaultdict
 )
+from hashlib import (
+    sha1
+)
 
 
 FILE_NAME_ENCODING = "cp1251"
@@ -36,6 +39,7 @@ FILE_NAME_ENCODING = "cp1251"
 
 DIFF_CODE_NODES = "N"
 DIFF_CODE_MOD_TIME = "T"
+DIFF_CODE_CHECKSUM = "C"
 
 
 class node_name(object):
@@ -249,6 +253,7 @@ class FileInfo(object):
         self.file = f
         self.mtime = None # modification time
         self.full_name = None
+        self.checksum = None
 
 
 def _diff(_set, code):
@@ -278,6 +283,11 @@ class file(node_name):
 
         mtimes = set(inf.mtime for inf in self.infos.values())
         d = _diff(mtimes, DIFF_CODE_MOD_TIME)
+        if d:
+            res.append(d)
+
+        chsums = set(inf.checksum for inf in self.infos.values())
+        d = _diff(chsums, DIFF_CODE_CHECKSUM)
         if d:
             res.append(d)
 
@@ -396,6 +406,11 @@ def build_root_tree(root_path, root_dir, root_idx):
 files_queue = []
 scanned_roots = 0
 
+
+# CheckSum Block Size
+CS_BLOCK_SZ = 1 << 20
+
+
 def file_scaner():
     global files_queue
     global scanned_roots
@@ -414,6 +429,17 @@ def file_scaner():
         fi.full_name = full_name
         fi.mtime = getmtime(full_name)
 
+        cs = sha1()
+
+        with open(full_name, "rb") as f:
+            while True:
+                yield
+                block = f.read(CS_BLOCK_SZ)
+                if not block:
+                    break
+                cs.update(block)
+
+        fi.checksum = cs.digest()
 
 COLOR_NODE_ABSENT = "#ffded8"
 COLOR_NODE_NOT_READY = "gray"
