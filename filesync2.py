@@ -32,6 +32,12 @@ from collections import (
 from hashlib import (
     sha1
 )
+from subprocess import (
+    Popen
+)
+from traceback import (
+    print_exc
+)
 
 
 FILE_NAME_ENCODING = "cp1251"
@@ -265,6 +271,14 @@ def _diff(_set, code):
     else:
         return code if len(_set) > 1 else ""
 
+
+def _definitely_diff(_set):
+    if None in _set:
+        return len(_set) > 2
+    else:
+        return len(_set) > 1
+
+
 class file(node_name):
 
     def __init__(self, *a, **kw):
@@ -292,6 +306,10 @@ class file(node_name):
             res.append(d)
 
         return " ".join(res)
+
+    def diff(self, attr):
+        _variants = set(getattr(inf, attr) for inf in self.infos.values())
+        return _definitely_diff(_variants)
 
     @property
     def ready(self):
@@ -613,14 +631,19 @@ if __name__ == "__main__":
             return
 
         node = iid2node[iid]
-        if not isinstance(node, directory):
-            return
+        if isinstance(node, directory):
+            if target_tree_updater is not None:
+                cancel_task(target_tree_updater)
 
-        if target_tree_updater is not None:
-            cancel_task(target_tree_updater)
-
-        target_tree_updater = tree_updater(node)
-        tasks.insert(0, target_tree_updater)
+            target_tree_updater = tree_updater(node)
+            tasks.insert(0, target_tree_updater)
+        elif isinstance(node, file):
+            if node.diff("checksum"):
+                paths = list(i.full_name for i in node.infos.values())
+                try:
+                    Popen(["meld"] + paths[:2])
+                except:
+                    print_exc()
 
     tv.bind("<<TreeviewOpen>>", on_treeview_open)
 
