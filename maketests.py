@@ -39,7 +39,7 @@ class FSTestNode(object):
     def addChild(self, child):
         assert child.parent is None
 
-        self.children.add(child)
+        self.children[child.name] = child
         child.parent = self
 
     def __hash__(self):
