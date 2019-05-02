@@ -105,6 +105,8 @@ class FSTestDir(FSTestNode):
         chdir("..")
 
     def remove(self):
+        if not exists(self.name):
+            return
         self.clear()
         cmd(["rmdir", self.name])
 
