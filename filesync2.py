@@ -851,6 +851,8 @@ if __name__ == "__main__":
 
     tk.protocol("WM_DELETE_WINDOW", delete_window)
 
+    tv.focus_set()
+
     while working:
         tk.update()
         tk.update_idletasks()
