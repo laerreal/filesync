@@ -6,6 +6,7 @@ from os.path import (
     sep
 )
 from os import (
+    utime,
     listdir
 )
 from argparse import (
@@ -656,6 +657,39 @@ if __name__ == "__main__":
                 if n._iid is not None:
                     refresh_node(n)
 
+    def sync_files(tree):
+        global tv
+
+        queue = [tree]
+
+        # forget all
+        while queue:
+            yield
+
+            n = queue.pop()
+            if isinstance(n, file):
+                if n.diff("checksum"):
+                    pass # TODO
+                else:
+                    # If files have no differences then modification time is
+                    # set to elder one.
+                    fis = list(n.infos.values())
+                    mtimes = set(fi.mtime for fi in fis)
+
+                    if _definitely_diff(mtimes):
+                        min_time = min(mtimes)
+
+                        for fi in fis:
+                            utime(fi.full_name, (min_time, min_time))
+
+                        for fi in fis:
+                            fi.mtime = getmtime(fi.full_name)
+
+                        if n._iid:
+                            refresh_node(n)
+            elif isinstance(n, directory):
+                queue[:0] = n.node_list
+
     def cancel_task(t):
         try:
             tasks.remove(t)
@@ -712,6 +746,16 @@ if __name__ == "__main__":
             tasks.insert(0, rescan_files(iid2node[iid]))
 
     accels[82] = acc_rescan_files
+
+    def acc_sync_files(_):
+        "Synchronize files in selected folders"
+
+        global tasks
+        sel = tv.selection()
+        for iid in sel:
+            tasks.insert(0, sync_files(iid2node[iid]))
+
+    accels[83] = acc_sync_files
 
     def on_ctrl_key(e):
         f = accels[e.keycode]
