@@ -48,7 +48,7 @@ DIFF_CODE_MOD_TIME = "T"
 DIFF_CODE_CHECKSUM = "C"
 
 
-class node_name(object):
+class node(object):
 
     def __init__(self, name, container, full_path):
         self.name = name
@@ -97,7 +97,7 @@ class node_name(object):
         else:
             c.consistent_children -= 1
 
-class directory(node_name):
+class directory(node):
 
     def __init__(self, *a, **kw):
         super(directory, self).__init__(*a, **kw)
@@ -279,7 +279,7 @@ def _definitely_diff(_set):
         return len(_set) > 1
 
 
-class file(node_name):
+class file(node):
 
     def __init__(self, *a, **kw):
         super(file, self).__init__(*a, **kw)
