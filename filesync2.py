@@ -43,6 +43,9 @@ from traceback import (
 from platform import (
     system
 )
+from itertools import (
+    chain
+)
 
 
 IS_WINDOWS = system() == "Windows"
@@ -823,12 +826,17 @@ if __name__ == "__main__":
         root_idx = min(max(0, col_idx - 1), len(roots) - 1)
         # Reminder, root columns (with  "+"/"-" signs) are after column #0.
 
-        di = popup_menu_node.infos[root_idx]
-        if di.full_name is not None:
+        for idx in chain(range(root_idx, len(roots)), range(0, root_idx)):
+            di = popup_menu_node.infos[idx]
+            if di.full_name is None:
+                continue
+
             if IS_WINDOWS:
                 Popen(["explorer", di.full_name])
             else:
                 print("TODO: open %s" % di.full_name)
+
+            break
 
     dir_menu.add_command(label = "Open", command = open_dir)
 
