@@ -459,6 +459,7 @@ def file_scaner():
 
         fi.checksum = cs.digest()
 
+
 COLOR_NODE_ABSENT = "#ffded8"
 COLOR_NODE_NOT_READY = "gray"
 COLOR_NODE_INCONSISTENT = "#ffdd93"
@@ -567,43 +568,93 @@ if __name__ == "__main__":
 
             node = queue.pop()
 
-            parent_iid = node2iid.get(node.container, "")
-
-            values = []
-
-            for i in range(len(roots)):
-                f = 1 << i
-                values.append("+" if f & node.root_flags else "-")
-
-            values.append(node.diffs)
-
-            tags = []
-
-            if node.root_flags != ALL_ROOTS:
-                tags.append("absent")
-            else:
-                if not node.consistent:
-                    tags.append("inconsistent")
-            if not node.ready:
-                tags.append("notready")
-
-            iid = node._iid
-            if iid is None:
-                iid = tv.insert(parent_iid, "end",
-                    text = node.name.decode(FILE_NAME_ENCODING),
-                    tags = tags,
-                    values = values
-                )
-                iid2node[iid] = node
-                node2iid[node] = iid
-                node._iid = iid
-            else:
-                tv.item(iid, tags = tags, values = values)
+            refresh_node(node)
 
             if isinstance(node, directory):
                 for subnode in node.values():
                     queue.insert(0, subnode)
 
+
+    def refresh_node(node):
+        parent_iid = node2iid.get(node.container, "")
+
+        values = []
+
+        for i in range(len(roots)):
+            f = 1 << i
+            values.append("+" if f & node.root_flags else "-")
+
+        values.append(node.diffs)
+
+        tags = []
+
+        if node.root_flags != ALL_ROOTS:
+            tags.append("absent")
+        else:
+            if not node.consistent:
+                tags.append("inconsistent")
+        if not node.ready:
+            tags.append("notready")
+
+        iid = node._iid
+        if iid is None:
+            iid = tv.insert(parent_iid, "end",
+                text = node.name.decode(FILE_NAME_ENCODING),
+                tags = tags,
+                values = values
+            )
+            iid2node[iid] = node
+            node2iid[node] = iid
+            node._iid = iid
+        else:
+            tv.item(iid, tags = tags, values = values)
+
+    def rescan_files(tree):
+        global tv
+
+        queue = [tree]
+        second_pass = []
+
+        # forget all
+        while queue:
+            yield
+
+            n = queue.pop()
+            if isinstance(n, file):
+                for fi in n.infos.values():
+                    fi.mtime = fi.checksum = None
+                if n._iid is not None:
+                    refresh_node(n)
+                second_pass.append(n)
+            elif isinstance(n, directory):
+                queue[:0] = n.node_list
+
+        for n in second_pass:
+            yield
+
+            for fi in n.infos.values():
+                full_name = fi.full_name
+
+                # It's impossible now
+                # if full_name is None:
+                #     continue
+
+                fi.mtime = getmtime(full_name)
+
+                cs = sha1()
+
+                with open(full_name, "rb") as f:
+                    while True:
+                        yield
+                        block = f.read(CS_BLOCK_SZ)
+                        if not block:
+                            break
+                        cs.update(block)
+
+                fi.checksum = cs.digest()
+
+                if n._iid is not None:
+                    refresh_node(n)
 
     def cancel_task(t):
         try:
@@ -646,6 +697,28 @@ if __name__ == "__main__":
                     print_exc()
 
     tv.bind("<<TreeviewOpen>>", on_treeview_open)
+
+    def acc_print_event(e):
+        "Print key event parameters"
+        print(e.keycode)
+
+    accels = defaultdict(lambda : acc_print_event)
+
+    def acc_rescan_files(e):
+        "Rescan files in selected folders"
+        global tasks
+        sel = tv.selection()
+        for iid in sel:
+            tasks.insert(0, rescan_files(iid2node[iid]))
+
+    accels[82] = acc_rescan_files
+
+    def on_ctrl_key(e):
+        f = accels[e.keycode]
+        # print(f.__doc__)
+        f(e)
+
+    tv.bind("<Control-Key>", on_ctrl_key)
 
     bt_updatre_tree = Button(bt_frame,
         text = "Update tree",
