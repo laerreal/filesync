@@ -13,6 +13,7 @@ from argparse import (
     ArgumentParser
 )
 from six.moves.tkinter import (
+    Menu,
     Label,
     LEFT,
     RIGHT,
@@ -34,11 +35,18 @@ from hashlib import (
     sha1
 )
 from subprocess import (
+    PIPE,
     Popen
 )
 from traceback import (
     print_exc
 )
+from platform import (
+    system
+)
+
+
+IS_WINDOWS = system() == "Windows"
 
 
 FILE_NAME_ENCODING = "cp1251"
@@ -118,6 +126,9 @@ class directory(node):
         self._ready_internal = False
 
         self._consistent_children = 0
+
+        # root_idx -> DirInfo
+        self.infos = defaultdict(lambda : DirInfo(self))
 
         self._update_consistency()
 
@@ -263,6 +274,13 @@ class FileInfo(object):
         self.checksum = None
 
 
+class DirInfo(object):
+
+    def __init__(self, d):
+        self.dir = d
+        self.full_name = None
+
+
 def _diff(_set, code):
     if None in _set:
         # `None` means some values are unknown for now.
@@ -395,6 +413,9 @@ def build_root_tree(root_path, root_dir, root_idx):
 
                 node.root_flags |= root_flag
                 node.roots += 1
+
+                node.infos[root_idx].full_name = full_path
+
                 folders.append((full_path, node))
             elif isfile(full_path):
                 if node_name in _dir:
@@ -763,6 +784,55 @@ if __name__ == "__main__":
         f(e)
 
     tv.bind("<Control-Key>", on_ctrl_key)
+
+    dir_menu = Menu(tv, tearoff = False)
+
+    def on_b3(e):
+        row_iid = tv.identify_row(e.y)
+        if not row_iid:
+            return
+
+        n = iid2node[row_iid]
+        if not isinstance(n, directory):
+            return
+
+        tv.selection_set(row_iid)
+
+        global popup_menu_point
+        global popup_menu_node
+        popup_menu_point = e.x, e.y
+        popup_menu_node = n
+
+        try:
+            dir_menu.tk_popup(e.x_root, e.y_root)
+        finally:
+            dir_menu.grab_release()
+
+    tv.bind("<Button-3>", on_b3, "+")
+
+    def open_dir():
+        global popup_menu_point
+        global popup_menu_node
+
+        try:
+            col = tv.identify_column(popup_menu_point[0])
+            col_idx = int(col[1:])
+        except:
+            print_exc()
+            return
+
+        root_idx = min(max(0, col_idx - 1), len(roots) - 1)
+        # Reminder, root columns (with  "+"/"-" signs) are after column #0.
+
+        di = popup_menu_node.infos[root_idx]
+        if di.full_name is not None:
+            if IS_WINDOWS:
+                Popen(["explorer", di.full_name])
+            else:
+                print("TODO: open %s" % di.full_name)
+
+    dir_menu.add_command(label = "Open", command = open_dir)
+
 
     bt_updatre_tree = Button(bt_frame,
         text = "Update tree",
