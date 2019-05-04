@@ -35,7 +35,6 @@ from hashlib import (
     sha1
 )
 from subprocess import (
-    PIPE,
     Popen
 )
 from traceback import (
