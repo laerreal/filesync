@@ -535,9 +535,6 @@ if __name__ == "__main__":
             if not part:
                 del d[i]
 
-    if DEBUG_PATHS:
-        print(roots)
-
     if args.forget:
         try:
             del settings["roots"]
@@ -547,6 +544,9 @@ if __name__ == "__main__":
         for r in settings.get("roots", []):
             if r not in roots:
                 roots.insert(0, r)
+
+    if DEBUG_PATHS:
+        print(roots)
 
     root_dir = directory("", None, "")
 
