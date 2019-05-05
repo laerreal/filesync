@@ -80,9 +80,28 @@ class node(object):
 
         self._iid = None
 
+    def _get_file_diffs(self):
+        pd = self._prev_diffs
+
+        for name, code in FileInfo_infos.items():
+            status = pd[name]
+            if status == 1:
+                diff = code + "?"
+            elif status == 2:
+                diff = code
+            else:
+                continue
+            yield diff
+
+    def diff(self, attr):
+        return self._prev_diffs[attr] == 2
+
     def __info_changed__(self, name):
         _variants = set(getattr(inf, name) for inf in self.infos.values())
         if None in _variants:
+            # `None` means some values are unknown for now.
+            # But, if there is at least two different values except
+            # `None` then the difference definitely takes place.
             if len(_variants) > 2:
                 diff = 2 # there is difference
             else:
@@ -219,19 +238,10 @@ class directory(node):
 
     @property
     def diffs(self):
-        res = []
         if len(self.node_list) > 0:
-            pd = self._prev_diffs
-
-            for name, code in FileInfo_infos.items():
-                status = pd[name]
-                if status == 1:
-                    diff = code + "?"
-                elif status == 2:
-                    diff = code
-                else:
-                    continue
-                res.append(diff)
+            res = list(self._get_file_diffs())
+        else:
+            res = []
 
         if not self.consistent:
             res.insert(0, DIFF_CODE_NODES)
@@ -394,16 +404,6 @@ class DirInfo(object):
         self.full_name = None
 
 
-def _diff(_set, code):
-    if None in _set:
-        # `None` means some values are unknown for now.
-        # But, if there is at least two different values except `None` then the
-        # difference definitely takes place.
-        return code + ("" if len(_set) > 2 else "?")
-    else:
-        return code if len(_set) > 1 else ""
-
-
 def _definitely_diff(_set):
     if None in _set:
         return len(_set) > 2
@@ -428,23 +428,7 @@ class file(node):
 
     @property
     def diffs(self):
-        res = []
-
-        mtimes = set(inf.mtime for inf in self.infos.values())
-        d = _diff(mtimes, DIFF_CODE_MOD_TIME)
-        if d:
-            res.append(d)
-
-        chsums = set(inf.checksum for inf in self.infos.values())
-        d = _diff(chsums, DIFF_CODE_CHECKSUM)
-        if d:
-            res.append(d)
-
-        return " ".join(res)
-
-    def diff(self, attr):
-        _variants = set(getattr(inf, attr) for inf in self.infos.values())
-        return _definitely_diff(_variants)
+        return " ".join(self._get_file_diffs())
 
     @property
     def ready(self):
