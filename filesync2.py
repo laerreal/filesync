@@ -316,6 +316,9 @@ class file(node):
 
         self._update_consistency()
 
+    def __str__(self):
+        return self.name + " (" + self.full_path + ")"
+
     @property
     def diffs(self):
         res = []
