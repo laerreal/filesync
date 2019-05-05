@@ -76,8 +76,32 @@ class node(object):
             container.append(name, self)
 
         self._consistent_ = False
+        self._prev_diffs = dict([(k, 1) for k in FileInfo_infos])
 
         self._iid = None
+
+    def __info_changed__(self, name):
+        _variants = set(getattr(inf, name) for inf in self.infos.values())
+        if None in _variants:
+            if len(_variants) > 2:
+                diff = 2 # there is difference
+            else:
+                diff = 1 # difference presence is unknown
+        else:
+            diff = 2 if len(_variants) > 1 else 0
+            # 0 - no difference
+
+        self.__diff__(name, diff)
+
+    def __diff__(self, name, status):
+        pd = self._prev_diffs
+        if pd[name] == status:
+            return
+        pd[name] = status
+
+        c = self.container
+        if c is not None:
+            c.__diff_changed__(self, name, status)
 
     @property
     def root_flags(self):
@@ -138,11 +162,80 @@ class directory(node):
 
         self._update_consistency()
 
+    def __diff_changed__(self, node, name, status):
+        pd = self._prev_diffs
+        cur = pd[name]
+
+        if cur == status:
+            return
+        if cur > status:
+            # diff status of a node become less. Is there a node with greater
+            # status?
+            status = max(n._prev_diffs[name] for n in self.node_list)
+            if cur == status:
+                return
+
+        pd[name] = status
+
+        c = self.container
+        if c is not None:
+            c.__diff_changed__(self, name, status)
+
+        """
+        cur = nd[name]
+        XXX: alt impl: 2 = True (diff), 1 = None (unknow), 0 - False (no diff)
+
+        if cur is status:
+            return
+
+        if status is True:
+            # at least one node differs, so the directory does too
+            nd[name] = True
+        elif status is None:
+            # Status of a node become unknown. If all nodes have not have diffs
+            # then now the state of the directory is unknown. If at least one
+            # has have diffs, we have to check does it now have.
+
+            if cur is True:
+                for n in self.node_list:
+                    if n is node:
+                        continue
+                    if n._prev_diffs[name] is True:
+                        # other node has diffs
+                        return
+                # else:
+                # the node has have diffs before but now its status is unknown.
+
+            nd[name] = None
+        else: # status is False
+            for n in self.node_list:
+                if n is node:
+                    continue
+                if n._prev_diffs[name] is not False:
+                    # a node has difference or its state is unknown
+                    return
+            nd[name] = False
+        """
+
     @property
     def diffs(self):
-        if self.consistent:
-            return ""
-        return DIFF_CODE_NODES
+        res = []
+        if len(self.node_list) > 0:
+            pd = self._prev_diffs
+
+            for name, code in FileInfo_infos.items():
+                status = pd[name]
+                if status == 1:
+                    diff = code + "?"
+                elif status == 2:
+                    diff = code
+                else:
+                    continue
+                res.append(diff)
+
+        if not self.consistent:
+            res.insert(0, DIFF_CODE_NODES)
+        return " ".join(res)
 
     @property
     def consistent_children(self):
@@ -271,13 +364,27 @@ A directory is consistent if:
         return "\n".join(self.print_subdirs())
 
 
+FileInfo_infos = {
+    "mtime" : DIFF_CODE_MOD_TIME, # modification time
+    "checksum" : DIFF_CODE_CHECKSUM,
+}
+
+
 class FileInfo(object):
 
     def __init__(self, f):
         self.file = f
-        self.mtime = None # modification time
         self.full_name = None
-        self.checksum = None
+        d = self.__dict__
+        for i in FileInfo_infos:
+            # XXX: honestly: `object.__setattr__(self, i, None)`
+            d[i] = None
+
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+        # TODO: some of checks are likely redundant now
+        if name in FileInfo_infos: # and value != getattr(self, name):
+            self.file.__info_changed__(name)
 
 
 class DirInfo(object):
