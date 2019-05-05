@@ -499,6 +499,10 @@ SETTINGS_FILE = ".fs2.dat"
 if __name__ == "__main__":
     ap = ArgumentParser()
     ap.add_argument("-d", action = "append", default = [])
+    ap.add_argument("--forget",
+        action = "store_true",
+        help = "Forget root list"
+    )
 
     args = ap.parse_args()
 
@@ -534,9 +538,15 @@ if __name__ == "__main__":
     if DEBUG_PATHS:
         print(roots)
 
-    for r in settings.get("roots", []):
-        if r not in roots:
-            roots.insert(0, r)
+    if args.forget:
+        try:
+            del settings["roots"]
+        except:
+            pass
+    else:
+        for r in settings.get("roots", []):
+            if r not in roots:
+                roots.insert(0, r)
 
     root_dir = directory("", None, "")
 
