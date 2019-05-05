@@ -12,6 +12,10 @@ from os import (
 from argparse import (
     ArgumentParser
 )
+from six.moves.cPickle import (
+    load,
+    dump
+)
 from six.moves.tkinter import (
     Menu,
     Label,
@@ -489,14 +493,24 @@ COLOR_NODE_NOT_READY = "gray"
 COLOR_NODE_INCONSISTENT = "#ffdd93"
 
 
+SETTINGS_FILE = ".fs2.dat"
+
+
 if __name__ == "__main__":
     ap = ArgumentParser()
-    ap.add_argument("-d", action = "append")
+    ap.add_argument("-d", action = "append", default = [])
 
     args = ap.parse_args()
 
     if DEBUG_PATHS:
         print(args)
+
+    try:
+        with open(SETTINGS_FILE, "rb") as f:
+            settings = load(f)
+    except:
+        print_exc()
+        settings = {}
 
     roots = list([d] for d in args.d)
 
@@ -519,6 +533,10 @@ if __name__ == "__main__":
 
     if DEBUG_PATHS:
         print(roots)
+
+    for r in settings.get("roots", []):
+        if r not in roots:
+            roots.insert(0, r)
 
     root_dir = directory("", None, "")
 
@@ -854,12 +872,21 @@ if __name__ == "__main__":
     working = True
 
     def delete_window():
+        global settings
+        settings["geometry"] = tk.geometry()
+
         global working
         working = False
 
     tk.protocol("WM_DELETE_WINDOW", delete_window)
 
     tv.focus_set()
+
+    def set_geometry():
+        yield
+        tk.geometry(settings.setdefault("geometry", tk.geometry()))
+
+    tasks.append(set_geometry())
 
     while working:
         tk.update()
@@ -883,3 +910,8 @@ if __name__ == "__main__":
 
     if DEBUG_TREE:
         print(root_dir)
+
+    settings["roots"] = roots
+
+    with open(SETTINGS_FILE, "wb") as f:
+        dump(settings, f)
