@@ -1039,7 +1039,7 @@ if __name__ == "__main__":
         tk.update()
         tk.update_idletasks()
 
-        i = 10
+        i = 100
         while i:
             if tasks:
                 t = tasks.pop()
@@ -1047,6 +1047,8 @@ if __name__ == "__main__":
                     next(t)
                 except StopIteration:
                     print(t.__name__ + " finished")
+                    if not tasks:
+                        break
                 else:
                     tasks.insert(0, t)
             i -= 1
