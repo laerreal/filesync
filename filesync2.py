@@ -988,6 +988,7 @@ if __name__ == "__main__":
     )
     bt_updatre_tree.pack(side = RIGHT)
 
+    Label(bt_frame, text = "Tasks: ").pack(side = LEFT)
     lb_tasks = Label(bt_frame)
     lb_tasks.pack(side = LEFT)
 
