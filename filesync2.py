@@ -63,6 +63,21 @@ DIFF_CODE_MOD_TIME = "T"
 DIFF_CODE_CHECKSUM = "C"
 
 
+_stat_io_ops = 0
+_stat_io_bytes = 0
+
+
+_globals = globals()
+for io_op in ["getmtime", "isfile", "isdir", "utime", "listdir"]:
+    def gen_io_op(op):
+        def io_op(*a, **kw):
+            global _stat_io_ops
+            _stat_io_ops += 1
+            # print(op.__name__)
+            return op(*a, **kw)
+        return io_op
+    _globals[io_op] = gen_io_op(_globals[io_op])
+
 class node(object):
 
     def __init__(self, name, container, full_path):
@@ -555,6 +570,7 @@ def file_scaner():
     global files_queue
     global scanned_roots
     global ALL_ROOTS
+    global _stat_io_bytes
 
     while files_queue or ALL_ROOTS ^ scanned_roots:
         yield
@@ -577,6 +593,7 @@ def file_scaner():
                 block = f.read(CS_BLOCK_SZ)
                 if not block:
                     break
+                _stat_io_bytes += len(block)
                 cs.update(block)
 
         fi.checksum = cs.digest()
@@ -757,6 +774,7 @@ if __name__ == "__main__":
 
     def rescan_files(tree):
         global tv
+        global _stat_io_bytes
 
         queue = [tree]
         second_pass = []
@@ -795,6 +813,7 @@ if __name__ == "__main__":
                         block = f.read(CS_BLOCK_SZ)
                         if not block:
                             break
+                        _stat_io_bytes += len(block)
                         cs.update(block)
 
                 fi.checksum = cs.digest()
@@ -972,6 +991,14 @@ if __name__ == "__main__":
     lb_tasks = Label(bt_frame)
     lb_tasks.pack(side = LEFT)
 
+    Label(bt_frame, text = "IO/s: ").pack(side = LEFT)
+    lb_iops = Label(bt_frame, text = "0")
+    lb_iops.pack(side = LEFT)
+
+    Label(bt_frame, text = "MiB/s: ").pack(side = LEFT)
+    lb_iobs = Label(bt_frame, text = "0")
+    lb_iobs.pack(side = LEFT)
+
     # Tk main loop
     working = True
 
@@ -991,6 +1018,21 @@ if __name__ == "__main__":
         tk.geometry(settings.setdefault("geometry", tk.geometry()))
 
     tasks.append(set_geometry())
+
+    def update_stats():
+        global _stat_io_ops
+        global _stat_io_bytes
+
+        tk.after(1000, update_stats)
+
+        lb_iops.config(text = str(_stat_io_ops))
+        _stat_io_ops = 0
+
+        lb_iobs.config(text = str(_stat_io_bytes >> 20))
+        _stat_io_bytes = 0
+
+
+    tk.after_idle(update_stats)
 
     while working:
         tk.update()
