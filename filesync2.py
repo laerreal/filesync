@@ -723,6 +723,16 @@ if __name__ == "__main__":
     iid2node = {}
     node2iid = {}
 
+    # Root item is never explicitly created. But corresponding data must be
+    # consistent.
+    root_dir._iid = ""
+    iid2node[""] = root_dir
+    node2iid[root_dir] = ""
+
+    # Root is always open. Option "open" has no effect. But setting it to
+    # `True` simplifies tree update algorithm
+    tv.item("", open = True)
+
     def tree_updater(_dir):
         queue = list(reversed(list(_dir.values())))
 
@@ -734,8 +744,13 @@ if __name__ == "__main__":
             refresh_node(node)
 
             if isinstance(node, directory):
-                for subnode in node.values():
-                    queue.insert(0, subnode)
+                # Not that nodes of a closed directories must be updated too.
+                # It's required for [+] sign (expandable mark) to be shown if
+                # the directory has nodes.
+                c = node.container
+                if c is None or tv.item(c._iid, "open"):
+                    for subnode in node.values():
+                        queue.insert(0, subnode)
 
 
     def refresh_node(node):
