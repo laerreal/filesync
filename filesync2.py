@@ -30,6 +30,7 @@ from six.moves.tkinter import (
     Tk
 )
 from six.moves.tkinter_ttk import (
+    Separator,
     Treeview
 )
 from collections import (
@@ -1003,17 +1004,20 @@ if __name__ == "__main__":
     )
     bt_updatre_tree.pack(side = RIGHT)
 
-    Label(bt_frame, text = "Tasks: ").pack(side = LEFT)
     lb_tasks = Label(bt_frame)
     lb_tasks.pack(side = LEFT)
+    Label(bt_frame, text = "Tasks").pack(side = LEFT)
+    Separator(bt_frame, orient = VERTICAL).pack(side = LEFT, fill = "y")
 
-    Label(bt_frame, text = "IO/s: ").pack(side = LEFT)
     lb_iops = Label(bt_frame, text = "0")
     lb_iops.pack(side = LEFT)
+    Label(bt_frame, text = "IO/s").pack(side = LEFT)
+    Separator(bt_frame, orient = VERTICAL).pack(side = LEFT, fill = "y")
 
-    Label(bt_frame, text = "MiB/s: ").pack(side = LEFT)
     lb_iobs = Label(bt_frame, text = "0")
     lb_iobs.pack(side = LEFT)
+    Label(bt_frame, text = "MiB/s").pack(side = LEFT)
+    Separator(bt_frame, orient = VERTICAL).pack(side = LEFT, fill = "y")
 
     # Tk main loop
     working = True
