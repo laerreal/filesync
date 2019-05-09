@@ -20,6 +20,9 @@ from sys import \
 from copy import \
     deepcopy as dcp
 
+from traceback import \
+    print_exc
+
 scriptDir = dirname(__file__)
 offgen = join(scriptDir, "offgen.exe")
 
@@ -110,7 +113,10 @@ class FSTestDir(FSTestNode):
         if not exists(self.name):
             return
         self.clear()
-        remove(self.name)
+        try:
+            remove(self.name)
+        except:
+            print_exc()
 
     def generate(self):
         mkdir(self.name)
