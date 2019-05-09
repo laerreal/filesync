@@ -6,6 +6,8 @@ from os.path import (
     sep
 )
 from os import (
+    remove,
+    rmdir,
     utime,
     listdir
 )
@@ -69,7 +71,9 @@ _stat_io_bytes = 0
 
 
 _globals = globals()
-for io_op in ["getmtime", "isfile", "isdir", "utime", "listdir"]:
+for io_op in [
+    "getmtime", "isfile", "isdir", "utime", "listdir", "remove", "rmdir"
+]:
     def gen_io_op(op):
         def io_op(*a, **kw):
             global _stat_io_ops
@@ -400,11 +404,7 @@ class FileInfo(object):
 
     def __init__(self, f):
         self.file = f
-        self.full_name = None
-        d = self.__dict__
-        for i in FileInfo_infos:
-            # XXX: honestly: `object.__setattr__(self, i, None)`
-            d[i] = None
+        self._reset()
 
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
@@ -412,11 +412,21 @@ class FileInfo(object):
         if name in FileInfo_infos: # and value != getattr(self, name):
             self.file.__info_changed__(name)
 
+    def _reset(self):
+        self.full_name = None
+        d = self.__dict__
+        for i in FileInfo_infos:
+            # XXX: honestly: `object.__setattr__(self, i, None)`
+            d[i] = None
+
 
 class DirInfo(object):
 
     def __init__(self, d):
         self.dir = d
+        self._reset()
+
+    def _reset(self):
         self.full_name = None
 
 
@@ -735,7 +745,10 @@ if __name__ == "__main__":
     tv.item("", open = True)
 
     def tree_updater(_dir):
-        queue = list(reversed(list(_dir.values())))
+        if isinstance(_dir, directory):
+            queue = list(reversed(list(_dir.values())))
+        else:
+            queue = [_dir]
 
         while queue:
             yield
@@ -870,6 +883,42 @@ if __name__ == "__main__":
             elif isinstance(n, directory):
                 queue[:0] = n.node_list
 
+    def delete_tree(tree, root_idx):
+        global tasks
+
+        queue = [tree]
+        dirs = []
+
+        root_clear_mask = ALL_ROOTS - (1 << root_idx)
+
+        while queue:
+            yield
+
+            n = queue.pop()
+            info = n.infos[root_idx]
+            full_name = info.full_name
+
+            if full_name is None:
+                continue
+
+            if isinstance(n, file):
+                remove(full_name)
+                del n.infos[root_idx]
+                for name in FileInfo_infos:
+                    n.__info_changed__(name)
+                n.root_flags &= root_clear_mask
+            elif isinstance(n, directory):
+                queue[:0] = n.node_list
+                dirs.insert(0, n)
+
+        for n in dirs:
+            yield
+            rmdir(n.infos.pop(root_idx).full_name)
+            n.root_flags &= root_clear_mask
+
+        tasks.insert(0, tree_updater(tree))
+
+
     def cancel_task(t):
         try:
             tasks.remove(t)
@@ -945,6 +994,28 @@ if __name__ == "__main__":
     tv.bind("<Control-Key>", on_ctrl_key)
 
     dir_menu = Menu(tv, tearoff = False)
+    file_menu = Menu(tv, tearoff = False)
+
+    def menu_set_node_specific(m, n):
+        del_menu = m._del_menu
+
+        # clear first
+        del_menu.delete(0, "end")
+
+        infos = n.infos
+        for idx in range(len(roots)):
+            i = infos[idx]
+            if i.full_name is None:
+                continue
+
+            label = str(idx) + ": " + i.full_name.decode(FILE_NAME_ENCODING)
+
+            def do_delete(n = n, idx = idx):
+                global tasks
+                print("del " + n.infos[idx].full_name)
+                tasks.insert(0, delete_tree(n, idx))
+
+            del_menu.add_command(label = label, command = do_delete)
 
     def on_b3(e):
         row_iid = tv.identify_row(e.y)
@@ -952,8 +1023,6 @@ if __name__ == "__main__":
             return
 
         n = iid2node[row_iid]
-        if not isinstance(n, directory):
-            return
 
         tv.selection_set(row_iid)
 
@@ -962,10 +1031,14 @@ if __name__ == "__main__":
         popup_menu_point = e.x, e.y
         popup_menu_node = n
 
+        menu = dir_menu if isinstance(n, directory) else file_menu
+
+        menu_set_node_specific(menu, n)
+
         try:
-            dir_menu.tk_popup(e.x_root, e.y_root)
+            menu.tk_popup(e.x_root, e.y_root)
         finally:
-            dir_menu.grab_release()
+            menu.grab_release()
 
     tv.bind("<Button-3>", on_b3, "+")
 
@@ -997,6 +1070,9 @@ if __name__ == "__main__":
 
     dir_menu.add_command(label = "Open", command = open_dir)
 
+    for m in (dir_menu, file_menu):
+        m._del_menu = del_menu = Menu(m, tearoff = False)
+        m.add_cascade(label = "Delete", menu = del_menu)
 
     bt_updatre_tree = Button(bt_frame,
         text = "Update tree",
