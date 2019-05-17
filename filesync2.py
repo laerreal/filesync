@@ -1070,7 +1070,16 @@ if __name__ == "__main__":
 
     dir_menu.add_command(label = "Open", command = open_dir)
 
+    def sync_files_menu():
+        global popup_menu_node
+        tasks.insert(0, sync_files(popup_menu_node))
+
     for m in (dir_menu, file_menu):
+        m.add_command(label = "Sync",
+            command = sync_files_menu,
+            accel = "Ctrl+S"
+        )
+        m.add_separator()
         m._del_menu = del_menu = Menu(m, tearoff = False)
         m.add_cascade(label = "Delete", menu = del_menu)
 
