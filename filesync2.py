@@ -53,7 +53,9 @@ from platform import (
 from itertools import (
     chain
 )
-
+from types import (
+    GeneratorType
+)
 
 IS_WINDOWS = system() == "Windows"
 
@@ -577,11 +579,26 @@ scanned_roots = 0
 CS_BLOCK_SZ = 1 << 20
 
 
+def compute_checksum(full_name):
+    global _stat_io_bytes
+
+    cs = sha1()
+
+    with open(full_name, "rb") as f:
+        while True:
+            yield
+            block = f.read(CS_BLOCK_SZ)
+            if not block:
+                break
+            _stat_io_bytes += len(block)
+            cs.update(block)
+
+    yield cs.digest()
+
 def file_scaner():
     global files_queue
     global scanned_roots
     global ALL_ROOTS
-    global _stat_io_bytes
 
     while files_queue or ALL_ROOTS ^ scanned_roots:
         yield
@@ -596,18 +613,7 @@ def file_scaner():
         fi.full_name = full_name
         fi.mtime = getmtime(full_name)
 
-        cs = sha1()
-
-        with open(full_name, "rb") as f:
-            while True:
-                yield
-                block = f.read(CS_BLOCK_SZ)
-                if not block:
-                    break
-                _stat_io_bytes += len(block)
-                cs.update(block)
-
-        fi.checksum = cs.digest()
+        fi.checksum = yield compute_checksum(full_name)
 
 
 COLOR_NODE_ABSENT = "#ffded8"
@@ -803,7 +809,6 @@ if __name__ == "__main__":
 
     def rescan_files(tree):
         global tv
-        global _stat_io_bytes
 
         queue = [tree]
         second_pass = []
@@ -834,18 +839,7 @@ if __name__ == "__main__":
 
                 fi.mtime = getmtime(full_name)
 
-                cs = sha1()
-
-                with open(full_name, "rb") as f:
-                    while True:
-                        yield
-                        block = f.read(CS_BLOCK_SZ)
-                        if not block:
-                            break
-                        _stat_io_bytes += len(block)
-                        cs.update(block)
-
-                fi.checksum = cs.digest()
+                fi.checksum = yield compute_checksum(full_name)
 
                 if n._iid is not None:
                     refresh_node(n)
@@ -1139,6 +1133,9 @@ if __name__ == "__main__":
 
     tk.after_idle(update_stats)
 
+    callers = {} # task yielded key task
+    yields = {} # last value yield by task
+
     while working:
         tk.update()
         tk.update_idletasks()
@@ -1148,13 +1145,32 @@ if __name__ == "__main__":
             if tasks:
                 t = tasks.pop()
                 try:
-                    next(t)
+                    if type(t) is tuple:
+                        t, callee_ret = t
+                        res = t.send(callee_ret)
+                    else:
+                        res = next(t)
                 except StopIteration:
-                    print(t.__name__ + " finished")
-                    if not tasks:
-                        break
+                    try:
+                        caller = callers.pop(t)
+                    except KeyError:
+                        print(t.__name__ + " finished")
+                        if not tasks:
+                            break
+                    else:
+                        callee_ret = yields.pop(t)
+#                         print(t.__name__ + " returns " + repr(callee_ret) +
+#                                 " to " + caller.__name__
+#                         )
+                        tasks.insert(0, (caller, callee_ret))
                 else:
-                    tasks.insert(0, t)
+                    if isinstance(res, GeneratorType):
+#                         print(t.__name__ + " calls " + res.__name__)
+                        callers[res] = t
+                        tasks.insert(0, res)
+                    else:
+                        yields[t] = res
+                        tasks.insert(0, t)
             i -= 1
 
         lb_tasks.config(text = str(len(tasks)))
