@@ -19,6 +19,7 @@ from six.moves.cPickle import (
     dump
 )
 from six.moves.tkinter import (
+    IntVar,
     Menu,
     Label,
     LEFT,
@@ -58,6 +59,9 @@ from types import (
 )
 from six import (
     PY3
+)
+from time import (
+    time
 )
 
 IS_WINDOWS = system() == "Windows"
@@ -1130,6 +1134,13 @@ if __name__ == "__main__":
     Label(bt_frame, text = "MiB/s").pack(side = LEFT)
     Separator(bt_frame, orient = VERTICAL).pack(side = LEFT, fill = "y")
 
+    # Task executions per Tk main loop iteration
+    var_tpi = IntVar(value = 0)
+    lb_tpi = Label(bt_frame, textvariable = var_tpi)
+    lb_tpi.pack(side = LEFT)
+    Label(bt_frame, text = "T/I").pack(side = LEFT)
+    Separator(bt_frame, orient = VERTICAL).pack(side = LEFT, fill = "y")
+
     # Tk main loop
     working = True
 
@@ -1168,11 +1179,15 @@ if __name__ == "__main__":
     callers = {} # task yielded key task
     yields = {} # last value yield by task
 
+    task_iterations = 64
+    var_tpi.set(task_iterations)
+
     while working:
         tk.update()
         tk.update_idletasks()
 
-        i = 100
+        i = task_iterations
+        t1 = time()
         while i:
             if tasks:
                 t = tasks.pop()
@@ -1207,7 +1222,23 @@ if __name__ == "__main__":
                         tasks.insert(0, t)
             i -= 1
 
-        lb_tasks.config(text = str(len(tasks)))
+        t2 = time()
+
+        tot_tasks = len(tasks)
+        task_iter_limit = max(1, tot_tasks) << 5
+
+        if t2 - t1 > 0.2 and task_iterations > 2:
+            task_iterations >>= 1
+            var_tpi.set(task_iterations)
+        elif t2 - t1 < 0.05 and task_iterations < (task_iter_limit << 1):
+            task_iterations <<= 1
+            var_tpi.set(task_iterations)
+
+        if task_iterations > task_iter_limit:
+            task_iterations = task_iter_limit
+            var_tpi.set(task_iterations)
+
+        lb_tasks.config(text = str(tot_tasks))
 
     tk.destroy()
 
