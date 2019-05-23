@@ -24,12 +24,24 @@ from traceback import \
     print_exc
 
 scriptDir = dirname(__file__)
-offgen = join(scriptDir, "offgen.exe")
 
-cmd(["gcc", "-O3", "-o", offgen, join(scriptDir, "offgen.c")])
+for gen in ["offgen", "linegen"]:
+    genexe = join(scriptDir, gen + ".exe")
+    cmd(["gcc", "-O3", "-o", genexe, join(scriptDir, gen + ".c")])
+
 
 def offsetGenerator(fstf, offsetBytes = 4):
-    cmd([offgen, fstf.name, str(fstf.size), str(offsetBytes)])
+    cmd([
+        join(scriptDir, "offgen.exe"),
+        fstf.name,
+        str(fstf.size),
+        str(offsetBytes)
+    ])
+
+
+def lineGenerator(fstf):
+    cmd([join(scriptDir, "linegen.exe"), fstf.name, str(fstf.size)])
+
 
 class FSTestNode(object):
     def __init__(self, *children):
@@ -157,7 +169,7 @@ baseFS = D("root",
  D("soldFiles",
    F("bigUnalignedFile", (123 << 19) + 123),
    F("bigFile", 123 << 20),
-   F("smallFile", 123)
+   F("smallFile", 123, generator = lineGenerator)
  )
 )
 
