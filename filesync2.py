@@ -880,6 +880,26 @@ if __name__ == "__main__":
                 if n._iid is not None:
                     refresh_node(n)
 
+    def _replace_file(src, dst):
+        global _stat_io_bytes
+
+        with open(src.full_name, "rb") as fsrc:
+            with open(dst.full_name, "wb") as fdst:
+                while True:
+                    yield
+                    block = fsrc.read(CS_BLOCK_SZ)
+                    if not block:
+                        break
+                    _stat_io_bytes += len(block)
+                    yield
+                    fdst.write(block)
+
+        yield
+        dst.checksum = src.checksum
+
+        yield
+        utime(dst.full_name, (src.mtime, src.mtime))
+
     def sync_files(tree):
         global tv
 
@@ -891,8 +911,30 @@ if __name__ == "__main__":
 
             n = queue.pop()
             if isinstance(n, file):
+                changed = False
                 if n.diff("checksum"):
-                    pass # TODO
+                    fis = sorted(n.infos.values(), key = lambda fi :-fi.mtime)
+
+                    if None not in fis:
+                        newest_checksum = fis[0].checksum
+                        for i, fi in enumerate(fis):
+                            if fi.checksum != newest_checksum:
+                                elder_of_newest = fis[i - 1]
+                                break
+                        else:
+                            print("!: all checksums equal while a diff is detected")
+
+                        ts = (elder_of_newest.mtime, elder_of_newest.mtime)
+
+                        for fi in fis:
+                            if fi is elder_of_newest:
+                                continue
+                            if fi.checksum != elder_of_newest.checksum:
+                                yield _replace_file(elder_of_newest, fi)
+                            elif fi.mtime != elder_of_newest:
+                                utime(fi.full_name, ts)
+
+                        changed = True
                 else:
                     # If files have no differences then modification time is
                     # set to elder one.
@@ -905,11 +947,14 @@ if __name__ == "__main__":
                         for fi in fis:
                             utime(fi.full_name, (min_time, min_time))
 
-                        for fi in fis:
-                            fi.mtime = getmtime(fi.full_name)
+                        changed = True
 
-                        if n._iid:
-                            refresh_node(n)
+                if changed:
+                    for fi in fis:
+                        fi.mtime = getmtime(fi.full_name)
+
+                    if n._iid:
+                        refresh_node(n)
             elif isinstance(n, directory):
                 queue[:0] = n.node_list
 
