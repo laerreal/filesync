@@ -107,7 +107,7 @@ class node(object):
             container.append(name, self)
 
         self._consistent_ = False
-        self._prev_diffs = dict([(k, 1) for k in FileInfo_infos])
+        # self._prev_diffs = [ set by child classes ]
 
         self._iid = None
 
@@ -190,6 +190,11 @@ class directory(node):
 
     def __init__(self, *a, **kw):
         super(directory, self).__init__(*a, **kw)
+
+        # Initially a directory is empty, so it's known that *all* its files
+        # have no difference (0)
+        self._prev_diffs = dict([(k, 0) for k in FileInfo_infos])
+
         self.node_list = []
         self.node_dict = {}
         self._ready_children = 0
@@ -211,6 +216,10 @@ class directory(node):
         self.infos = defaultdict(lambda : DirInfo(self))
 
         self._update_consistency()
+
+    def forget_files_diffs(self):
+        if self._total_names:
+            self._consider_files_unknown()
 
     def __diff_changed__(self, node, name, status):
         pd = self._prev_diffs
@@ -355,7 +364,14 @@ A directory is consistent if:
         prev_len = len(s)
         if names:
             s.update(names)
-            if prev_len == len(s):
+            if prev_len == 0:
+                # it's first time this empty directory is given some files.
+                # Now, information of differences in files must be considered
+                # unknown (1).
+                # Those files will be scanned later and the information becomes
+                # known (0 or 2).
+                self._consider_files_unknown()
+            elif prev_len == len(s):
                 return
         elif prev_len != 0:
             return
@@ -366,6 +382,9 @@ A directory is consistent if:
         # about this at least once.
 
         self.ready_internal = self.ready
+
+    def _consider_files_unknown(self):
+        self._prev_diffs = dict([(k, 1) for k in FileInfo_infos])
 
     def append(self, name, node):
         if name in self.node_dict:
@@ -452,6 +471,9 @@ class file(node):
 
     def __init__(self, *a, **kw):
         super(file, self).__init__(*a, **kw)
+
+        # All information of a file is initially unknown (1)
+        self._prev_diffs = dict([(k, 1) for k in FileInfo_infos])
 
         # root_idx -> FileInfo
         self.infos = defaultdict(lambda : FileInfo(self))
@@ -834,6 +856,7 @@ if __name__ == "__main__":
                     refresh_node(n)
                 second_pass.append(n)
             elif isinstance(n, directory):
+                n.forget_files_diffs()
                 queue[:0] = n.node_list
 
         for n in second_pass:
