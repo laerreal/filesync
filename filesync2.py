@@ -56,12 +56,21 @@ from itertools import (
 from types import (
     GeneratorType
 )
+from six import (
+    PY3
+)
 
 IS_WINDOWS = system() == "Windows"
 
 
 FILE_NAME_ENCODING = "cp1251"
 
+if PY3:
+    def f2u(fname):
+        return fname
+else:
+    def f2u(fname):
+        return fname.decode(FILE_NAME_ENCODING)
 
 DIFF_CODE_NODES = "N"
 DIFF_CODE_MOD_TIME = "T"
@@ -797,7 +806,7 @@ if __name__ == "__main__":
         iid = node._iid
         if iid is None:
             iid = tv.insert(parent_iid, "end",
-                text = node.name.decode(FILE_NAME_ENCODING),
+                text = f2u(node.name),
                 tags = tags,
                 values = values
             )
@@ -1002,7 +1011,7 @@ if __name__ == "__main__":
             if i.full_name is None:
                 continue
 
-            label = str(idx) + ": " + i.full_name.decode(FILE_NAME_ENCODING)
+            label = str(idx) + ": " + f2u(i.full_name)
 
             def do_delete(n = n, idx = idx):
                 global tasks
