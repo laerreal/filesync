@@ -1173,7 +1173,7 @@ if __name__ == "__main__":
 
         global popup_menu_point
         global popup_menu_node
-        popup_menu_point = e.x_root, e.y_root
+        popup_menu_point = e.x_root, e.y_root, e.x, e.y
         popup_menu_node = n
 
         menu = dir_menu if isinstance(n, directory) else file_menu
@@ -1232,7 +1232,7 @@ if __name__ == "__main__":
         global popup_menu_node
 
         try:
-            col = tv.identify_column(popup_menu_point[0])
+            col = tv.identify_column(popup_menu_point[2])
             col_idx = int(col[1:])
         except:
             print_exc()
@@ -1262,7 +1262,7 @@ if __name__ == "__main__":
     def show_info_menu():
         global popup_menu_node
         global popup_menu_point
-        x, y = popup_menu_point
+        x, y = popup_menu_point[:2]
         show_info(popup_menu_node, x - 5, y - 5)
 
     file_menu.add_command(
