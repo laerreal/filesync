@@ -9,6 +9,7 @@ from os.path import \
     exists
 
 from os import \
+    rmdir, \
     mkdir, \
     remove, \
     sep, \
@@ -126,7 +127,7 @@ class FSTestDir(FSTestNode):
             return
         self.clear()
         try:
-            remove(self.name)
+            rmdir(self.name)
         except:
             print_exc()
 
