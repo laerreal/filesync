@@ -19,6 +19,10 @@ from six.moves.cPickle import (
     dump
 )
 from six.moves.tkinter import (
+    DISABLED,
+    END,
+    Text,
+    Toplevel,
     IntVar,
     Menu,
     Label,
@@ -61,8 +65,19 @@ from six import (
     PY3
 )
 from time import (
+    strftime,
+    localtime,
     time
 )
+
+
+def text2content(text):
+    "For Tkinter.Text"
+    widget_height = float(text.index(END))
+    widget_width = max((len(l) + 1) for l in text.get("1.0", END).split("\n"))
+
+    text.config(width = widget_width, height = widget_height)
+
 
 IS_WINDOWS = system() == "Windows"
 
@@ -434,6 +449,23 @@ FileInfo_infos = {
 }
 
 
+def format_checksum(val):
+    return "".join("%0x" % ord(c) for c in val)
+
+
+def format_mtime(val):
+    t = localtime(val)
+    raw = strftime("%Y.%m.%d %H:%M:%S", t)
+    return f2u(raw)
+
+
+FileInfo_info_formatters = defaultdict(
+    lambda : str,
+    mtime = format_mtime,
+    checksum = format_checksum,
+)
+
+
 class FileInfo(object):
 
     def __init__(self, f):
@@ -658,6 +690,44 @@ COLOR_NODE_INCONSISTENT = "#ffdd93"
 
 SETTINGS_FILE = ".fs2.dat"
 
+HINT_HIDE_DELAY = 200 # ms
+
+
+class Hint(Toplevel):
+
+    def __init__(self, *a, **kw):
+        self.x, self.y = kw.pop("x", 0), kw.pop("y", 0)
+
+        Toplevel.__init__(self, *a, **kw)
+        self.overrideredirect(True)
+
+        self._hiding = None
+        self.bind("<Enter>", self._on_enter, "+")
+        self.bind("<Leave>", self._on_leave, "+")
+
+        # After all layout management is done...
+        self.after(10, self._update_position)
+
+    def _update_position(self):
+        self.geometry("%dx%d+%d+%d" % (
+            self.winfo_width(), self.winfo_height(),
+            self.x, self.y
+        ))
+
+    def _on_leave(self, _):
+        self._hide_cancel()
+        self._hiding = self.after(HINT_HIDE_DELAY, self._hide)
+
+    def _on_enter(self, _):
+        self._hide_cancel()
+
+    def _hide_cancel(self):
+        if self._hiding is not None:
+            self.after_cancel(self._hiding)
+            self._hiding = None
+
+    def _hide(self):
+        self.destroy()
 
 if __name__ == "__main__":
     ap = ArgumentParser()
@@ -1116,6 +1186,60 @@ if __name__ == "__main__":
             menu.grab_release()
 
     tv.bind("<Button-3>", on_b3, "+")
+
+    hint = None
+
+    def on_hint_destroyed(self):
+        global hint
+        hint = None
+
+    last_b1_n = None
+
+    def on_b1(e):
+        global hint
+        global last_b1_n
+
+        row_iid = tv.identify_row(e.y)
+        if not row_iid:
+            return
+
+        n = iid2node[row_iid]
+
+        # only second press on a row shows its info
+        if n is not last_b1_n:
+            last_b1_n = n
+            return
+
+        if not isinstance(n, file):
+            return
+
+        if hint is not None:
+            hint.destroy()
+
+        hint = Hint(x = e.x_root - 5, y = e.y_root - 5)
+        hint.bind("<Destroy>", on_hint_destroyed, "+")
+
+        for i, fi in sorted(n.infos.items()):
+            t = Text(hint)
+            t.tag_config("diff", background = COLOR_NODE_ABSENT)
+            t.insert(END, f2u(fi.full_name))
+
+            for attr in FileInfo_infos:
+                v = getattr(fi, attr)
+                pretty = FileInfo_info_formatters[attr](v)
+                line = attr + ": " + pretty
+
+                t.insert(END, "\n")
+                if FileInfo_infos[attr] in n.diffs:
+                    t.insert(END, line, "diff")
+                else:
+                    t.insert(END, line)
+
+            t.config(state = DISABLED)
+            t.pack(expand = True, padx = 3, pady = 3)
+            text2content(t)
+
+    tv.bind("<Button-1>", on_b1, "+")
 
     def open_dir():
         global popup_menu_point
