@@ -166,6 +166,9 @@ baseFS = D("root",
  ),
  D("emptyDirectory"),
  D("empty directory with spaces"),
+ D("dir",
+   D("dir")
+ ),
  D("пустаяПапакаСКириллицейВНазвании"),
  D("soldFiles",
    F("bigUnalignedFile", (123 << 19) + 123),
@@ -236,6 +239,7 @@ if __name__ == "__main__":
 
     # Do several modifications
     root[join("root", "soldFiles", "smallFile")].size += 13
+    root["root"]["dir"]["dir"].addChild(F("file"))
 
     root.remove()
     updateFS(root, verbose = verbose)
