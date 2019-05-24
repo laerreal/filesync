@@ -6,6 +6,7 @@ from os.path import (
     sep
 )
 from os import (
+    mkdir,
     remove,
     rmdir,
     utime,
@@ -129,6 +130,20 @@ class node(object):
         # self._prev_diffs = [ set by child classes ]
 
         self._iid = None
+
+    def iter_path_reversed(self):
+        n = self
+        n_next = n.container
+        while n_next:
+            yield n.name
+            n = n_next
+            n_next = n.container
+
+    @property
+    def root_path(self):
+        rpath = list(self.iter_path_reversed())
+        _path = list(reversed(rpath))
+        return join(*_path)
 
     def _get_file_diffs(self):
         pd = self._prev_diffs
@@ -783,7 +798,8 @@ if __name__ == "__main__":
 
     root_dir = directory("", None, "")
 
-    ALL_ROOTS = (1 << len(roots)) - 1
+    TOTAL_ROOTS = len(roots)
+    ALL_ROOTS = (1 << TOTAL_ROOTS) - 1
 
     root_dir.root_flags = ALL_ROOTS
 
@@ -804,7 +820,7 @@ if __name__ == "__main__":
     tree_w.columnconfigure(1, weight = 0)
 
     # columns for node presence marks
-    roots_cid = ["root%d" % i for i in range(len(roots))]
+    roots_cid = ["root%d" % i for i in range(TOTAL_ROOTS)]
 
     tv = Treeview(tree_w,
         columns = roots_cid + [
@@ -883,7 +899,7 @@ if __name__ == "__main__":
 
         values = []
 
-        for i in range(len(roots)):
+        for i in range(TOTAL_ROOTS):
             f = 1 << i
             values.append("+" if f & node.root_flags else "-")
 
@@ -980,6 +996,8 @@ if __name__ == "__main__":
             yield
 
             n = queue.pop()
+            presence = n.root_flags
+
             if isinstance(n, file):
                 changed = False
                 if n.diff("checksum"):
@@ -1026,6 +1044,22 @@ if __name__ == "__main__":
                     if n._iid:
                         refresh_node(n)
             elif isinstance(n, directory):
+                if presence != ALL_ROOTS:
+                    root_path = n.root_path
+                    for i in range(TOTAL_ROOTS):
+                        root_flag = 1 << i
+                        if root_flag & presence:
+                            continue
+
+                        yield
+                        absent = join(sep.join(roots[i]), root_path)
+                        mkdir(absent)
+                        n.root_flags |= root_flag
+                        n.roots += 1
+
+                    if n._iid:
+                        refresh_node(n)
+
                 queue[:0] = n.node_list
 
     def delete_tree(tree, root_idx):
@@ -1148,7 +1182,7 @@ if __name__ == "__main__":
         del_menu.delete(0, "end")
 
         infos = n.infos
-        for idx in range(len(roots)):
+        for idx in range(TOTAL_ROOTS):
             i = infos[idx]
             if i.full_name is None:
                 continue
@@ -1238,10 +1272,10 @@ if __name__ == "__main__":
             print_exc()
             return
 
-        root_idx = min(max(0, col_idx - 1), len(roots) - 1)
+        root_idx = min(max(0, col_idx - 1), TOTAL_ROOTS - 1)
         # Reminder, root columns (with  "+"/"-" signs) are after column #0.
 
-        for idx in chain(range(root_idx, len(roots)), range(0, root_idx)):
+        for idx in chain(range(root_idx, TOTAL_ROOTS), range(0, root_idx)):
             di = popup_menu_node.infos[idx]
             if di.full_name is None:
                 continue
