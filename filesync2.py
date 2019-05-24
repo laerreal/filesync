@@ -979,6 +979,7 @@ if __name__ == "__main__":
                     _stat_io_bytes += len(block)
                     yield
                     fdst.write(block)
+                    _stat_io_bytes += len(block)
 
         yield
         dst.checksum = src.checksum
