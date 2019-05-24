@@ -1173,7 +1173,7 @@ if __name__ == "__main__":
 
         global popup_menu_point
         global popup_menu_node
-        popup_menu_point = e.x, e.y
+        popup_menu_point = e.x_root, e.y_root
         popup_menu_node = n
 
         menu = dir_menu if isinstance(n, directory) else file_menu
@@ -1195,31 +1195,19 @@ if __name__ == "__main__":
 
     last_b1_n = None
 
-    def on_b1(e):
+    def show_info(n, x, y):
         global hint
         global last_b1_n
-
-        row_iid = tv.identify_row(e.y)
-        if not row_iid:
-            return
-
-        n = iid2node[row_iid]
-
-        # only second press on a row shows its info
-        if n is not last_b1_n:
-            last_b1_n = n
-            return
-
-        if not isinstance(n, file):
-            return
 
         if hint is not None:
             hint.destroy()
 
-        hint = Hint(x = e.x_root - 5, y = e.y_root - 5)
+        hint = Hint(x = x, y = y)
         hint.bind("<Destroy>", on_hint_destroyed, "+")
 
         for i, fi in sorted(n.infos.items()):
+            if fi.full_name is None:
+                continue
             t = Text(hint)
             t.tag_config("diff", background = COLOR_NODE_ABSENT)
             t.insert(END, f2u(fi.full_name))
@@ -1238,8 +1226,6 @@ if __name__ == "__main__":
             t.config(state = DISABLED)
             t.pack(expand = True, padx = 3, pady = 3)
             text2content(t)
-
-    tv.bind("<Button-1>", on_b1, "+")
 
     def open_dir():
         global popup_menu_point
@@ -1272,6 +1258,17 @@ if __name__ == "__main__":
     def sync_files_menu():
         global popup_menu_node
         tasks.insert(0, sync_files(popup_menu_node))
+
+    def show_info_menu():
+        global popup_menu_node
+        global popup_menu_point
+        x, y = popup_menu_point
+        show_info(popup_menu_node, x - 5, y - 5)
+
+    file_menu.add_command(
+        label = "Info",
+        command = show_info_menu
+    )
 
     for m in (dir_menu, file_menu):
         m.add_command(label = "Sync",
