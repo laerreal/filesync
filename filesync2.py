@@ -1,7 +1,5 @@
 from os.path import (
     getmtime,
-    isfile,
-    isdir,
     join,
     sep
 )
@@ -9,8 +7,7 @@ from os import (
     mkdir,
     remove,
     rmdir,
-    utime,
-    listdir
+    utime
 )
 from argparse import (
     ArgumentParser
@@ -70,6 +67,13 @@ from time import (
     localtime,
     time
 )
+from multiprocessing import (
+    Queue,
+    Process
+)
+from server import (
+    proc_build_root_tree
+)
 
 
 def text2content(text):
@@ -103,7 +107,7 @@ _stat_io_bytes = 0
 
 _globals = globals()
 for io_op in [
-    "getmtime", "isfile", "isdir", "utime", "listdir", "remove", "rmdir"
+    "getmtime", "utime", "remove", "rmdir"
 ]:
     def gen_io_op(op):
         def io_op(*a, **kw):
@@ -593,64 +597,107 @@ def by_roots(task):
     return task[1].roots
 
 
-def build_root_tree(root_path, root_dir, root_idx):
+class ProcessContext(object): pass
+
+
+def _set_cur_path(ctx, _path, dir_idx):
+    ctx.path = _path
+    ctx.dir = ctx.dirs[dir_idx]
+    ctx.files = []
+
+
+def _account_names(ctx, *nodes):
+    global _stat_io_ops
+    _stat_io_ops += 1
+
+    ctx.dir.account_names(nodes)
+
+
+def _it_is_dir(ctx, node_name):
+    global _stat_io_ops
+    _stat_io_ops += 1
+
+    full_path = join(ctx.path, node_name)
+    _dir = ctx.dir
+    if node_name in _dir:
+        node = _dir[node_name]
+    else:
+        node = directory(node_name, _dir, full_path)
+
+    node.root_flags |= ctx.root_flag
+    node.roots += 1
+
+    node.infos[ctx.root_idx].full_name = full_path
+
+    ctx.dirs.append(node)
+
+
+def _it_is_file(ctx, node_name):
+    global _stat_io_ops
+    _stat_io_ops += 2 # because `isdir` is checked first
+
+    full_path = join(ctx.path, node_name)
+    _dir = ctx.dir
+    if node_name in _dir:
+        node = _dir[node_name]
+    else:
+        node = file(node_name, _dir, full_path)
+
+    node.root_flags |= ctx.root_flag
+    node.roots += 1
+    node.ready = True
+
+    ctx.files.append((full_path, node, ctx.root_idx))
+
+
+def _dir_scaned(ctx):
     global files_queue
+
+    files_by_roots = sorted(ctx.files, key = by_roots)
+    files_queue[:0] = files_by_roots
+
+
+proc_build_root_tree_cbs = [
+    _set_cur_path,
+    _account_names,
+    _it_is_dir,
+    _it_is_file,
+    _dir_scaned,
+]
+
+
+def build_root_tree(root_path, root_dir, root_idx):
     global scanned_roots
 
-    root_flag = 1 << root_idx
+    q = Queue()
+    p = Process(target = proc_build_root_tree, args = (q, root_path))
+    p.start()
 
-    queue = [(sep.join(root_path), root_dir)]
+    ctx = ProcessContext()
+    ctx.root_idx = root_idx
+    ctx.root_flag = 1 << root_idx
+    ctx.dirs = [root_dir]
 
-    while queue:
-        yield # a pause
+    i = 0
 
-        _path, _dir = queue.pop()
+    while not i:
+        yield
 
-        nodes = listdir(_path)
+        i = 1000
 
-        _dir.account_names(nodes)
+        while i:
+            i -= 1
 
-        folders = []
-        files = []
-
-        for node_name in nodes:
-            full_path = join(_path, node_name)
-            if isdir(full_path):
-                if node_name in _dir:
-                    node = _dir[node_name]
-                else:
-                    node = directory(node_name, _dir, full_path)
-
-                node.root_flags |= root_flag
-                node.roots += 1
-
-                node.infos[root_idx].full_name = full_path
-
-                folders.append((full_path, node))
-            elif isfile(full_path):
-                if node_name in _dir:
-                    node = _dir[node_name]
-                else:
-                    node = file(node_name, _dir, full_path)
-
-                node.root_flags |= root_flag
-                node.roots += 1
-                node.ready = True
-
-                files.append((full_path, node, root_idx))
+            call, args = q.get()
+            if call is None:
+                break
+            cb = proc_build_root_tree_cbs[call]
+            if args is None:
+                cb(ctx)
             else:
-                print("Node of unknown kind: %s" % full_path)
+                cb(ctx, *args)
 
-        # first analyze folders which do exists in much of trees
-        folders = sorted(folders, key = by_roots)
-        # if len(folders) > 1:
-        #     assert folders[0][1].roots <= folders[-1][1].roots
-        queue[:0] = folders
-
-        files_by_roots = sorted(files, key = by_roots)
-        files_queue[:0] = files_by_roots
-
-    scanned_roots |= root_flag
+    scanned_roots |= ctx.root_flag
 
 
 files_queue = []
