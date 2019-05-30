@@ -1368,12 +1368,15 @@ if __name__ == "__main__":
 
         tk.after(1000, update_stats)
 
+        iostat.write(str(_stat_io_ops) + ";" + str(_stat_io_bytes) + "\n")
+
         lb_iops.config(text = str(_stat_io_ops))
         _stat_io_ops = 0
 
         lb_iobs.config(text = str(_stat_io_bytes >> 20))
         _stat_io_bytes = 0
 
+    iostat = open("iostat_%f.csv" % time(), "w")
 
     tk.after_idle(update_stats)
 
@@ -1450,3 +1453,5 @@ if __name__ == "__main__":
 
     with open(SETTINGS_FILE, "wb") as f:
         dump(settings, f)
+
+    iostat.close()
