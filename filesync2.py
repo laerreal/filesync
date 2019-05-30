@@ -71,6 +71,9 @@ from multiprocessing import (
     Queue,
     Process
 )
+from queue import (
+    Empty
+)
 from server import (
     proc_build_root_tree
 )
@@ -688,7 +691,11 @@ def build_root_tree(root_path, root_dir, root_idx):
         while i:
             i -= 1
 
-            call, args = q.get()
+            try:
+                call, args = q.get(False)
+            except Empty:
+                i = 0
+                break
             if call is None:
                 break
             cb = proc_build_root_tree_cbs[call]
