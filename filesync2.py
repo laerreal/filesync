@@ -75,11 +75,21 @@ from queue import (
     Empty
 )
 from server import (
+    recv,
     proc_io,
     FINALIZE_IO_PROC,
     GET_IO_OPS,
     GET_IO_BYTES,
-    proc_build_root_tree
+    BUILD_ROOT_TREE_PROC,
+    RUN_GLOBAL_CMD
+)
+from socket import (
+    timeout,
+    socket,
+    AF_INET,
+    SOCK_STREAM,
+    SOL_SOCKET,
+    SO_REUSEADDR
 )
 
 
@@ -619,16 +629,10 @@ def _set_cur_path(ctx, _path, dir_idx):
 
 
 def _account_names(ctx, *nodes):
-    global _stat_io_ops
-    _stat_io_ops += 1
-
     ctx.dir.account_names(nodes)
 
 
 def _it_is_dir(ctx, node_name):
-    global _stat_io_ops
-    _stat_io_ops += 1
-
     full_path = join(ctx.path, node_name)
     _dir = ctx.dir
     if node_name in _dir:
@@ -645,9 +649,6 @@ def _it_is_dir(ctx, node_name):
 
 
 def _it_is_file(ctx, node_name):
-    global _stat_io_ops
-    _stat_io_ops += 2 # because `isdir` is checked first
-
     full_path = join(ctx.path, node_name)
     _dir = ctx.dir
     if node_name in _dir:
@@ -681,9 +682,22 @@ proc_build_root_tree_cbs = [
 def build_root_tree(root_path, root_dir, root_idx):
     global scanned_roots
 
-    q = Queue()
-    p = Process(target = proc_build_root_tree, args = (q, root_path))
-    p.start()
+    # https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
+    ss = socket(AF_INET, SOCK_STREAM)
+    ss.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    yield
+    ss.bind(("", 0))
+    yield
+    ss.listen(1)
+    yield
+    port = ss.getsockname()[1]
+    io_proc_req.put((RUN_GLOBAL_CMD, (BUILD_ROOT_TREE_PROC, port, root_path)))
+    yield
+    s, _ = ss.accept()
+    yield
+    ss.close()
+    yield
+    s.settimeout(0.01)
 
     ctx = ProcessContext()
     ctx.root_idx = root_idx
@@ -695,14 +709,14 @@ def build_root_tree(root_path, root_dir, root_idx):
     while not i:
         yield
 
-        i = 1000
+        i = 100
 
         while i:
             i -= 1
 
             try:
-                call, args = q.get(False)
-            except Empty:
+                call, args = recv(s)
+            except timeout:
                 i = 0
                 break
             if call is None:

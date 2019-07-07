@@ -23,6 +23,9 @@ from struct import (
 )
 from socket import (
     timeout,
+    socket,
+    AF_INET,
+    SOCK_STREAM
 )
 
 DEBUG_SEND_RECV = False
@@ -50,7 +53,11 @@ for io_op in [
     _globals[io_op] = gen_io_op(_globals[io_op])
 
 
-def proc_build_root_tree(q, root_path):
+def proc_build_root_tree(port, root_path):
+    s = socket(AF_INET, SOCK_STREAM)
+    s.connect(("localhost", port))
+    s.setblocking(True)
+
     queue = [(sep.join(root_path), 0)]
 
     dir_count = 1
@@ -58,32 +65,32 @@ def proc_build_root_tree(q, root_path):
     while queue:
         _path, _dir = queue.pop()
 
-        q.put((0, (_path, _dir)))
+        send(s, (0, (_path, _dir)))
 
         nodes = listdir(_path)
 
-        q.put((1, nodes))
+        send(s, (1, nodes))
 
         folders = []
 
         for node_name in nodes:
             full_path = join(_path, node_name)
             if isdir(full_path):
-                q.put((2, (node_name,)))
+                send(s, (2, (node_name,)))
 
                 folders.append((full_path, dir_count))
                 dir_count += 1
             elif isfile(full_path):
-                q.put((3, (node_name,)))
+                send(s, (3, (node_name,)))
             else:
                 print("Node of unknown kind: %s" % full_path)
 
         # TODO: first analyze folders which do exists in much of trees
         queue[:0] = folders
 
-        q.put((4, None))
+        send(s, (4, None))
 
-    q.put((None, None))
+    send(s, (None, None))
 
 
 def run_global_threaded(_, name, *args):
@@ -111,6 +118,7 @@ GET_IO_OPS = (io_callbacks.index(get_global), ("_stat_io_ops",))
 GET_IO_BYTES = (io_callbacks.index(get_global), ("_stat_io_bytes",))
 FINALIZE_IO_PROC = (io_callbacks.index(finalize), tuple())
 RUN_GLOBAL_CMD = io_callbacks.index(run_global_threaded)
+BUILD_ROOT_TREE_PROC = "proc_build_root_tree"
 
 PROC_IO_TIMEOUT = 1.0
 
