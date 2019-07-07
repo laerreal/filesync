@@ -10,6 +10,9 @@ from os.path import (
 from queue import (
     Empty
 )
+from threading import (
+    Thread
+)
 from six.moves.cPickle import (
     dumps,
     loads
@@ -78,6 +81,10 @@ def proc_build_root_tree(q, root_path):
     q.put((None, None))
 
 
+def run_global_threaded(_, name, *args):
+    Thread(target = globals()[name], args = args).start()
+
+
 def get_global(outq, name):
     val = globals()[name]
     outq.put(val)
@@ -92,11 +99,13 @@ def finalize(*_):
 io_callbacks = [
     get_global,
     finalize,
+    run_global_threaded,
 ]
 
 GET_IO_OPS = (io_callbacks.index(get_global), ("_stat_io_ops",))
 GET_IO_BYTES = (io_callbacks.index(get_global), ("_stat_io_bytes",))
 FINALIZE_IO_PROC = (io_callbacks.index(finalize), tuple())
+RUN_GLOBAL_CMD = io_callbacks.index(run_global_threaded)
 
 PROC_IO_TIMEOUT = 1.0
 
