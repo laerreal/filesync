@@ -7,6 +7,31 @@ from os.path import (
     join,
     sep
 )
+from queue import (
+    Empty
+)
+
+_stat_io_bytes = 0
+_stat_io_ops = 0
+
+_globals = globals()
+for io_op in [
+    "listdir",
+    "isdir",
+    "isfile",
+]:
+
+    def gen_io_op(op):
+
+        def io_op(*a, **kw):
+            global _stat_io_ops
+            _stat_io_ops += 1
+            # print(op.__name__)
+            return op(*a, **kw)
+
+        return io_op
+
+    _globals[io_op] = gen_io_op(_globals[io_op])
 
 
 def proc_build_root_tree(q, root_path):
@@ -44,3 +69,27 @@ def proc_build_root_tree(q, root_path):
 
     q.put((None, None))
 
+
+def get_global(outq, name):
+    val = globals()[name]
+    outq.put(val)
+
+
+GET_IO_OPS = (0, ("_stat_io_ops",))
+GET_IO_BYTES = (0, ("_stat_io_bytes",))
+io_callbacks = [
+    get_global,
+]
+
+PROC_IO_TIMEOUT = 1.0
+
+
+def proc_io(inq, outq):
+    while True:
+        try:
+            cb, args = inq.get(True, PROC_IO_TIMEOUT)
+        except Empty:
+            continue
+
+        cb = io_callbacks[cb]
+        cb(outq, *args)

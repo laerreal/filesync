@@ -75,6 +75,9 @@ from queue import (
     Empty
 )
 from server import (
+    proc_io,
+    GET_IO_OPS,
+    GET_IO_BYTES,
     proc_build_root_tree
 )
 
@@ -107,6 +110,11 @@ DIFF_CODE_CHECKSUM = "C"
 _stat_io_ops = 0
 _stat_io_bytes = 0
 
+io_proc_req = Queue()
+io_proc_res = Queue()
+
+_io_proc_stat_io_ops = [0, 0] # previously and currently
+_io_proc_stat_io_bytes = [0, 0]
 
 _globals = globals()
 for io_op in [
@@ -707,6 +715,32 @@ def build_root_tree(root_path, root_dir, root_idx):
     scanned_roots |= ctx.root_flag
 
 
+def co_io_proc():
+    p = Process(target = proc_io, args = (io_proc_req, io_proc_res))
+    p.start()
+
+    while True:
+        yield
+        io_proc_req.put(GET_IO_OPS)
+        while True:
+            yield
+            try:
+                val = io_proc_res.get(False)
+            except Empty:
+                continue
+            _io_proc_stat_io_ops[1] = val
+
+        yield
+        io_proc_req.put(GET_IO_BYTES)
+        while True:
+            yield
+            try:
+                val = io_proc_res.get(False)
+            except Empty:
+                continue
+            _io_proc_stat_io_bytes[1] = val
+
+
 files_queue = []
 scanned_roots = 0
 
@@ -861,6 +895,8 @@ if __name__ == "__main__":
     tasks.append(tree_builder)
 
     tasks.append(file_scaner())
+
+    tasks.append(co_io_proc())
 
     # GUI
 
@@ -1421,6 +1457,14 @@ if __name__ == "__main__":
         global _stat_io_bytes
 
         tk.after(1000, update_stats)
+
+        io_ops = _io_proc_stat_io_ops[1] - _io_proc_stat_io_ops[0]
+        _io_proc_stat_io_ops[0] += io_ops
+        _stat_io_ops += io_ops
+
+        io_bytes = _io_proc_stat_io_bytes[1] - _io_proc_stat_io_bytes[0]
+        _io_proc_stat_io_bytes[0] += io_bytes
+        _stat_io_bytes += io_bytes
 
         iostat.write(str(_stat_io_ops) + ";" + str(_stat_io_bytes) + "\n")
 
