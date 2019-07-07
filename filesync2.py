@@ -76,6 +76,7 @@ from queue import (
 )
 from server import (
     proc_io,
+    FINALIZE_IO_PROC,
     GET_IO_OPS,
     GET_IO_BYTES,
     proc_build_root_tree
@@ -1543,6 +1544,8 @@ if __name__ == "__main__":
         lb_tasks.config(text = str(tot_tasks))
 
     tk.destroy()
+
+    io_proc_req.put(FINALIZE_IO_PROC)
 
     if DEBUG_TREE:
         print(root_dir)

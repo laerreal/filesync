@@ -75,11 +75,20 @@ def get_global(outq, name):
     outq.put(val)
 
 
-GET_IO_OPS = (0, ("_stat_io_ops",))
-GET_IO_BYTES = (0, ("_stat_io_bytes",))
+class Finalize(Exception): pass
+
+def finalize(*_):
+    raise Finalize
+
+
 io_callbacks = [
     get_global,
+    finalize,
 ]
+
+GET_IO_OPS = (io_callbacks.index(get_global), ("_stat_io_ops",))
+GET_IO_BYTES = (io_callbacks.index(get_global), ("_stat_io_bytes",))
+FINALIZE_IO_PROC = (io_callbacks.index(finalize), tuple())
 
 PROC_IO_TIMEOUT = 1.0
 
@@ -92,4 +101,7 @@ def proc_io(inq, outq):
             continue
 
         cb = io_callbacks[cb]
-        cb(outq, *args)
+        try:
+            cb(outq, *args)
+        except Finalize:
+            break
