@@ -21,6 +21,11 @@ from struct import (
     unpack,
     pack
 )
+from socket import (
+    timeout,
+)
+
+DEBUG_SEND_RECV = False
 
 _stat_io_bytes = 0
 _stat_io_ops = 0
@@ -124,21 +129,75 @@ def proc_io(inq, outq):
             break
 
 
-def send(s, obj):
-    data = dumps(obj)
-    s.send(pack("!I", len(data)))
-    s.send(data)
+if DEBUG_SEND_RECV:
+    serial = 0
 
+    def send(s, obj):
+        global serial
+        data = dumps((serial, obj))
+        serial += 1
+        rest = len(data)
+        # if rest == 39:
+        #     print("!")
+        if rest > 10000:
+            print("<< %d" % rest)
+        s.send(pack("!I", rest))
+        while True:
+            sent = s.send(data)
+            rest -= sent
+            if rest == 0:
+                break
+            print("fragment")
+            data = data[sent:]
 
-def recv(s):
-    raw_len = s.recv(4)
-    assert len(raw_len) == 4
-    rest = unpack("!I", raw_len)[0]
-    data = b""
-    while rest:
-        chunk = s.recv(rest)
-        if not chunk:
-            raise RuntimeError("Unexpected connection shutdown")
-        rest -= len(chunk)
-        data += chunk
-    return loads(data)
+    def recv(s):
+        raw_len = s.recv(4)
+        assert len(raw_len) == 4
+        rest = unpack("!I", raw_len)[0]
+        if rest > 10000:
+            print(">> %d %r" % (rest, raw_len))
+        data = b""
+        while rest:
+            # print(rest)
+            try:
+                chunk = s.recv(rest)
+            except timeout:
+                continue
+            print(len(chunk))
+            assert len(chunk) <= rest
+            if not chunk:
+                raise RuntimeError("Unexpected connection shutdown")
+            rest -= len(chunk)
+            data += chunk
+
+        serial, obj = loads(data)
+        print(serial)
+        return obj
+
+else:
+
+    def send(s, obj):
+        data = dumps(obj)
+        rest = len(data)
+        s.send(pack("!I", rest))
+        while True:
+            sent = s.send(data)
+            rest -= sent
+            if rest == 0:
+                break
+            data = data[sent:]
+
+    def recv(s):
+        raw_len = s.recv(4)
+        rest = unpack("!I", raw_len)[0]
+        data = b""
+        while rest:
+            try:
+                chunk = s.recv(rest)
+            except timeout:
+                continue
+            if not chunk:
+                raise RuntimeError("Unexpected connection shutdown")
+            rest -= len(chunk)
+            data += chunk
+        return loads(data)
