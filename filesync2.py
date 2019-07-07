@@ -730,6 +730,7 @@ def co_io_proc():
             except Empty:
                 continue
             _io_proc_stat_io_ops[1] = val
+            break
 
         yield
         io_proc_req.put(GET_IO_BYTES)
@@ -740,6 +741,7 @@ def co_io_proc():
             except Empty:
                 continue
             _io_proc_stat_io_bytes[1] = val
+            break
 
 
 files_queue = []
