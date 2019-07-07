@@ -10,6 +10,14 @@ from os.path import (
 from queue import (
     Empty
 )
+from six.moves.cPickle import (
+    dumps,
+    loads
+)
+from struct import (
+    unpack,
+    pack
+)
 
 _stat_io_bytes = 0
 _stat_io_ops = 0
@@ -105,3 +113,23 @@ def proc_io(inq, outq):
             cb(outq, *args)
         except Finalize:
             break
+
+
+def send(s, obj):
+    data = dumps(obj)
+    s.send(pack("!I", len(data)))
+    s.send(data)
+
+
+def recv(s):
+    raw_len = s.recv(4)
+    assert len(raw_len) == 4
+    rest = unpack("!I", raw_len)[0]
+    data = b""
+    while rest:
+        chunk = s.recv(rest)
+        if not chunk:
+            raise RuntimeError("Unexpected connection shutdown")
+        rest -= len(chunk)
+        data += chunk
+    return loads(data)
