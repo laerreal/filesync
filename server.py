@@ -163,6 +163,7 @@ if DEBUG_SEND_RECV:
             data = data[sent:]
 
     def recv(s):
+        # note, `recv` does not catch `timeout` here
         raw_len = s.recv(4)
         assert len(raw_len) == 4
         rest = unpack("!I", raw_len)[0]
@@ -200,6 +201,7 @@ else:
             data = data[sent:]
 
     def recv(s):
+        # note, `recv` does not catch `timeout` here
         raw_len = s.recv(4)
         rest = unpack("!I", raw_len)[0]
         data = b""
