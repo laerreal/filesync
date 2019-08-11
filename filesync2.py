@@ -276,6 +276,7 @@ def build_root_tree(root_path, root_dir, root_idx):
                 i = 0
                 break
             if call is None:
+                i = 1 # definitely exit upper `while`
                 break
             cb = proc_build_root_tree_cbs[call]
             if args is None:
