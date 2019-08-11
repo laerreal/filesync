@@ -67,13 +67,10 @@ from time import (
     time
 )
 from multiprocessing import (
-    Queue,
     Process
 )
-from queue import (
-    Empty
-)
 from server import (
+    send,
     recv,
     proc_io,
     FINALIZE_IO_PROC,
@@ -121,8 +118,7 @@ else:
 _stat_io_ops = 0
 _stat_io_bytes = 0
 
-io_proc_req = Queue()
-io_proc_res = Queue()
+io_proc_sock = None
 
 _io_proc_stat_io_ops = [0, 0] # previously and currently
 _io_proc_stat_io_bytes = [0, 0]
@@ -251,7 +247,7 @@ def build_root_tree(root_path, root_dir, root_idx):
 
     ss = AnyServer()
     yield
-    io_proc_req.put(
+    send(io_proc_sock,
         (RUN_GLOBAL_CMD, (BUILD_ROOT_TREE_PROC, ss.port, root_path))
     )
     yield
@@ -291,28 +287,34 @@ def build_root_tree(root_path, root_dir, root_idx):
 
 
 def co_io_proc():
-    p = Process(target = proc_io, args = (io_proc_req, io_proc_res))
+    global io_proc_sock
+
+    ss = AnyServer()
+    p = Process(target = proc_io, args = (ss.port,))
     p.start()
+
+    io_proc_sock, _ = ss.accept_and_close()
+    io_proc_sock.settimeout(0.01)
 
     while True:
         yield
-        io_proc_req.put(GET_IO_OPS)
+        send(io_proc_sock, GET_IO_OPS)
         while True:
             yield
             try:
-                val = io_proc_res.get(False)
-            except Empty:
+                val = recv(io_proc_sock)
+            except timeout:
                 continue
             _io_proc_stat_io_ops[1] = val
             break
 
         yield
-        io_proc_req.put(GET_IO_BYTES)
+        send(io_proc_sock, GET_IO_BYTES)
         while True:
             yield
             try:
-                val = io_proc_res.get(False)
-            except Empty:
+                val = recv(io_proc_sock)
+            except timeout:
                 continue
             _io_proc_stat_io_bytes[1] = val
             break
@@ -1083,7 +1085,8 @@ if __name__ == "__main__":
 
     tk.destroy()
 
-    io_proc_req.put(FINALIZE_IO_PROC)
+    send(io_proc_sock, FINALIZE_IO_PROC)
+    io_proc_sock.close()
 
     if DEBUG_TREE:
         print(root_dir)

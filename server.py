@@ -97,9 +97,9 @@ def run_global_threaded(_, name, *args):
     Thread(target = globals()[name], args = args).start()
 
 
-def get_global(outq, name):
+def get_global(s, name):
     val = globals()[name]
-    outq.put(val)
+    send(s, val)
 
 
 class Finalize(Exception): pass
@@ -123,16 +123,20 @@ BUILD_ROOT_TREE_PROC = "proc_build_root_tree"
 PROC_IO_TIMEOUT = 1.0
 
 
-def proc_io(inq, outq):
+def proc_io(port):
+    s = socket(AF_INET, SOCK_STREAM)
+    s.connect(("localhost", port))
+    s.settimeout(PROC_IO_TIMEOUT)
+
     while True:
         try:
-            cb, args = inq.get(True, PROC_IO_TIMEOUT)
-        except Empty:
+            cb, args = recv(s)
+        except timeout:
             continue
 
         cb = io_callbacks[cb]
         try:
-            cb(outq, *args)
+            cb(s, *args)
         except Finalize:
             break
 
