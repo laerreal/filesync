@@ -84,11 +84,6 @@ from server import (
 )
 from socket import (
     timeout,
-    socket,
-    AF_INET,
-    SOCK_STREAM,
-    SOL_SOCKET,
-    SO_REUSEADDR
 )
 from filemodel import (
     directory,
@@ -97,6 +92,9 @@ from filemodel import (
 )
 from widgets import (
     Hint
+)
+from common import (
+    AnyServer
 )
 
 
@@ -251,20 +249,13 @@ proc_build_root_tree_cbs = [
 def build_root_tree(root_path, root_dir, root_idx):
     global scanned_roots
 
-    # https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
-    ss = socket(AF_INET, SOCK_STREAM)
-    ss.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    ss = AnyServer()
     yield
-    ss.bind(("", 0))
+    io_proc_req.put(
+        (RUN_GLOBAL_CMD, (BUILD_ROOT_TREE_PROC, ss.port, root_path))
+    )
     yield
-    ss.listen(1)
-    yield
-    port = ss.getsockname()[1]
-    io_proc_req.put((RUN_GLOBAL_CMD, (BUILD_ROOT_TREE_PROC, port, root_path)))
-    yield
-    s, _ = ss.accept()
-    yield
-    ss.close()
+    s, _ = ss.accept_and_close()
     yield
     s.settimeout(0.01)
 
