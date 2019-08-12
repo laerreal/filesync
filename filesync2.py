@@ -165,6 +165,14 @@ DEBUG_PATHS = True
 DEBUG_TREE = False
 
 
+class CoRet(StopIteration):
+    "Raise this in called coroutine to 'return' a `value` to the caller."
+
+    def __init__(self, value, *a, **kw):
+        StopIteration.__init__(self, *a, **kw)
+        self.val = value
+
+
 # TODO: CoTaskManager
 tasks = []
 
@@ -343,7 +351,7 @@ def compute_checksum(full_name):
             _stat_io_bytes += len(block)
             cs.update(block)
 
-    yield cs.digest()
+    raise CoRet(cs.digest())
 
 def file_scaner():
     global files_queue
@@ -1021,7 +1029,6 @@ if __name__ == "__main__":
     tk.after_idle(update_stats)
 
     callers = {} # task yielded key task
-    yields = {} # last value yield by task
 
     task_iterations = 64
     var_tpi.set(task_iterations)
@@ -1041,7 +1048,7 @@ if __name__ == "__main__":
                         res = t.send(callee_ret)
                     else:
                         res = next(t)
-                except StopIteration:
+                except StopIteration as ret:
                     try:
                         caller = callers.pop(t)
                     except KeyError:
@@ -1049,11 +1056,15 @@ if __name__ == "__main__":
                         if not tasks:
                             break
                     else:
-                        callee_ret = yields.pop(t, None)
-#                         print(t.__name__ + " returns " + repr(callee_ret) +
-#                                 " to " + caller.__name__
-#                         )
-                        tasks.insert(0, (caller, callee_ret))
+                        if type(ret) is StopIteration:
+                            # simple return
+                            tasks.insert(0, caller)
+                        else: # CoRet or subclasses
+                            # returning a value
+                            # print(t.__name__ + " returns " + repr(ret.val) +
+                            #         " to " + caller.__name__
+                            # )
+                            tasks.insert(0, (caller, ret.val))
                 else:
                     if res is None:
                         tasks.insert(0, t)
@@ -1062,8 +1073,7 @@ if __name__ == "__main__":
                         callers[res] = t
                         tasks.insert(0, res)
                     else:
-                        yields[t] = res
-                        tasks.insert(0, t)
+                        print(t.__name__ + " yielded %r" % res)
             i -= 1
 
         t2 = time()
