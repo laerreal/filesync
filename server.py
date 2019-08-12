@@ -90,18 +90,18 @@ def proc_build_root_tree(port, root_path):
     send(s, (None, None))
 
 
-def run_global_threaded(_, name, *args):
+def run_global_threaded(name, *args):
     Thread(target = globals()[name], args = args).start()
 
 
-def get_global(s, name):
+def get_global(name):
     val = globals()[name]
-    send(s, val)
+    return val
 
 
 class Finalize(Exception): pass
 
-def finalize(*_):
+def finalize():
     raise Finalize
 
 
@@ -133,9 +133,10 @@ def proc_io(port):
 
         cb = io_callbacks[cb]
         try:
-            cb(s, *args)
+            res = cb(*args)
         except Finalize:
             break
+        send(s, res)
 
 
 if DEBUG_SEND_RECV:

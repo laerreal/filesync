@@ -118,8 +118,6 @@ else:
 _stat_io_ops = 0
 _stat_io_bytes = 0
 
-io_proc_sock = None
-
 _io_proc_stat_io_ops = [0, 0] # previously and currently
 _io_proc_stat_io_bytes = [0, 0]
 
@@ -254,11 +252,9 @@ def build_root_tree(root_path, root_dir, root_idx):
     global scanned_roots
 
     ss = AnyServer()
-    yield
-    send(io_proc_sock,
+    yield co_io_proc_req(
         (RUN_GLOBAL_CMD, (BUILD_ROOT_TREE_PROC, ss.port, root_path))
     )
-    yield
     s, _ = ss.accept_and_close()
     yield
     s.settimeout(0.01)
@@ -295,8 +291,12 @@ def build_root_tree(root_path, root_dir, root_idx):
     scanned_roots |= ctx.root_flag
 
 
+def co_io_proc_req(*a, **kw):
+    raise RuntimeError("I/O process is not ready yet, see co_io_proc")
+
 def co_io_proc():
     global io_proc_sock
+    global co_io_proc_req
 
     ss = AnyServer()
     p = Process(target = proc_io, args = (ss.port,))
@@ -305,28 +305,31 @@ def co_io_proc():
     io_proc_sock, _ = ss.accept_and_close()
     io_proc_sock.settimeout(0.01)
 
-    while True:
-        yield
-        send(io_proc_sock, GET_IO_OPS)
-        while True:
-            yield
-            try:
-                val = recv(io_proc_sock)
-            except timeout:
-                continue
-            _io_proc_stat_io_ops[1] = val
-            break
+    lock = [False]
 
-        yield
-        send(io_proc_sock, GET_IO_BYTES)
+    def co_io_proc_req(req):
+        while lock[0]:
+            yield
+        lock[0] = True
+        send(io_proc_sock, req)
         while True:
             yield
             try:
-                val = recv(io_proc_sock)
+                res = recv(io_proc_sock)
+                break
             except timeout:
                 continue
-            _io_proc_stat_io_bytes[1] = val
-            break
+            except:
+                lock[0] = False
+                raise
+
+        lock[0] = False
+
+        raise CoRet(res)
+
+    while True:
+        _io_proc_stat_io_ops[1] = yield co_io_proc_req(GET_IO_OPS)
+        _io_proc_stat_io_bytes[1] = yield co_io_proc_req(GET_IO_BYTES)
 
 
 files_queue = []
@@ -1096,6 +1099,8 @@ if __name__ == "__main__":
 
     tk.destroy()
 
+    # XXX: server may fail after that because a `co_io_proc_req` call is
+    # interrupted.
     send(io_proc_sock, FINALIZE_IO_PROC)
     io_proc_sock.close()
 
