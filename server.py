@@ -7,9 +7,6 @@ from os.path import (
     join,
     sep
 )
-from queue import (
-    Empty
-)
 from threading import (
     Thread
 )
