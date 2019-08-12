@@ -24,6 +24,10 @@ from socket import (
     AF_INET,
     SOCK_STREAM
 )
+from hashlib import (
+    sha1
+)
+
 
 DEBUG_SEND_RECV = False
 
@@ -99,6 +103,26 @@ def get_global(name):
     return val
 
 
+# CheckSum Block Size
+CS_BLOCK_SZ = 1 << 20
+
+
+def compute_checksum(full_name):
+    global _stat_io_bytes
+
+    cs = sha1()
+
+    with open(full_name, "rb") as f:
+        while True:
+            block = f.read(CS_BLOCK_SZ)
+            if not block:
+                break
+            _stat_io_bytes += len(block)
+            cs.update(block)
+
+    return cs.digest()
+
+
 class Finalize(Exception): pass
 
 def finalize():
@@ -109,6 +133,7 @@ io_callbacks = [
     get_global,
     finalize,
     run_global_threaded,
+    compute_checksum,
 ]
 
 GET_IO_OPS = (io_callbacks.index(get_global), ("_stat_io_ops",))
@@ -116,6 +141,7 @@ GET_IO_BYTES = (io_callbacks.index(get_global), ("_stat_io_bytes",))
 FINALIZE_IO_PROC = (io_callbacks.index(finalize), tuple())
 RUN_GLOBAL_CMD = io_callbacks.index(run_global_threaded)
 BUILD_ROOT_TREE_PROC = "proc_build_root_tree"
+COMPUTE_CHECKSUM_CMD = io_callbacks.index(compute_checksum)
 
 PROC_IO_TIMEOUT = 1.0
 

@@ -40,9 +40,6 @@ from six.moves.tkinter_ttk import (
 from collections import (
     defaultdict
 )
-from hashlib import (
-    sha1
-)
 from subprocess import (
     Popen
 )
@@ -70,6 +67,8 @@ from multiprocessing import (
     Process
 )
 from server import (
+    COMPUTE_CHECKSUM_CMD,
+    CS_BLOCK_SZ as CP_BLOCK_SZ, # file copy block size
     send,
     recv,
     proc_io,
@@ -336,25 +335,10 @@ files_queue = []
 scanned_roots = 0
 
 
-# CheckSum Block Size
-CS_BLOCK_SZ = 1 << 20
-
 
 def compute_checksum(full_name):
-    global _stat_io_bytes
+    return co_io_proc_req((COMPUTE_CHECKSUM_CMD, (full_name,)))
 
-    cs = sha1()
-
-    with open(full_name, "rb") as f:
-        while True:
-            yield
-            block = f.read(CS_BLOCK_SZ)
-            if not block:
-                break
-            _stat_io_bytes += len(block)
-            cs.update(block)
-
-    raise CoRet(cs.digest())
 
 def file_scaner():
     global files_queue
@@ -616,7 +600,7 @@ if __name__ == "__main__":
             with open(dst.full_name, "wb") as fdst:
                 while True:
                     yield
-                    block = fsrc.read(CS_BLOCK_SZ)
+                    block = fsrc.read(CP_BLOCK_SZ)
                     if not block:
                         break
                     _stat_io_bytes += len(block)
