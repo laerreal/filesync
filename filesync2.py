@@ -1,5 +1,4 @@
 from os.path import (
-    getmtime,
     join,
     sep
 )
@@ -67,6 +66,7 @@ from multiprocessing import (
     Process
 )
 from server import (
+    GETMTIME_CMD,
     COMPUTE_CHECKSUM_CMD,
     CS_BLOCK_SZ as CP_BLOCK_SZ, # file copy block size
     send,
@@ -122,7 +122,7 @@ _io_proc_stat_io_bytes = [0, 0]
 
 _globals = globals()
 for io_op in [
-    "getmtime", "utime", "remove", "rmdir"
+    "utime", "remove", "rmdir"
 ]:
     def gen_io_op(op):
         def io_op(*a, **kw):
@@ -335,6 +335,9 @@ files_queue = []
 scanned_roots = 0
 
 
+def get_mod_time(full_name):
+    return co_io_proc_req((GETMTIME_CMD, (full_name,)))
+
 
 def compute_checksum(full_name):
     return co_io_proc_req((COMPUTE_CHECKSUM_CMD, (full_name,)))
@@ -356,7 +359,7 @@ def file_scaner():
         fi = node.infos[root_idx]
 
         fi.full_name = full_name
-        fi.mtime = getmtime(full_name)
+        fi.mtime = yield get_mod_time(full_name)
 
         fi.checksum = yield compute_checksum(full_name)
 
@@ -586,7 +589,7 @@ if __name__ == "__main__":
                 # if full_name is None:
                 #     continue
 
-                fi.mtime = getmtime(full_name)
+                fi.mtime = yield get_mod_time(full_name)
 
                 fi.checksum = yield compute_checksum(full_name)
 
@@ -667,7 +670,7 @@ if __name__ == "__main__":
 
                 if changed:
                     for fi in fis:
-                        fi.mtime = getmtime(fi.full_name)
+                        fi.mtime = yield get_mod_time(fi.full_name)
 
                     if n._iid:
                         refresh_node(n)
