@@ -78,6 +78,9 @@ class FSTestNode(object):
     def exists(self):
         return exists(self.name)
 
+    def __str__(self):
+        return type(self).__name__ + "(%r)" % self.name
+
 class FSTestFile(FSTestNode):
     def __init__(self, name,
         size = 0,
