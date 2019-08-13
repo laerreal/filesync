@@ -6,7 +6,6 @@ from os import (
     mkdir,
     remove,
     rmdir,
-    utime
 )
 from argparse import (
     ArgumentParser
@@ -66,6 +65,7 @@ from multiprocessing import (
     Process
 )
 from server import (
+    UTIME_CMD,
     GETMTIME_CMD,
     COMPUTE_CHECKSUM_CMD,
     CS_BLOCK_SZ as CP_BLOCK_SZ, # file copy block size
@@ -122,7 +122,7 @@ _io_proc_stat_io_bytes = [0, 0]
 
 _globals = globals()
 for io_op in [
-    "utime", "remove", "rmdir"
+    "remove", "rmdir"
 ]:
     def gen_io_op(op):
         def io_op(*a, **kw):
@@ -341,6 +341,10 @@ def get_mod_time(full_name):
 
 def compute_checksum(full_name):
     return co_io_proc_req((COMPUTE_CHECKSUM_CMD, (full_name,)))
+
+
+def set_mod_time(full_name, timestamp):
+    return co_io_proc_req((UTIME_CMD, (full_name, timestamp)))
 
 
 def file_scaner():
@@ -614,8 +618,7 @@ if __name__ == "__main__":
         yield
         dst.checksum = src.checksum
 
-        yield
-        utime(dst.full_name, (src.mtime, src.mtime))
+        yield set_mod_time(dst.full_name, (src.mtime, src.mtime))
 
     def sync_files(tree):
         global tv
@@ -651,7 +654,7 @@ if __name__ == "__main__":
                             if fi.checksum != elder_of_newest.checksum:
                                 yield _replace_file(elder_of_newest, fi)
                             elif fi.mtime != elder_of_newest:
-                                utime(fi.full_name, ts)
+                                yield set_mod_time(fi.full_name, ts)
 
                         changed = True
                 else:
@@ -663,8 +666,10 @@ if __name__ == "__main__":
                     if _definitely_diff(mtimes):
                         min_time = min(mtimes)
 
+                        ts = (min_time, min_time)
+
                         for fi in fis:
-                            utime(fi.full_name, (min_time, min_time))
+                            yield set_mod_time(fi.full_name, ts)
 
                         changed = True
 

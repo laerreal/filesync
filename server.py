@@ -1,4 +1,5 @@
 from os import (
+    utime,
     listdir
 )
 from os.path import (
@@ -37,6 +38,7 @@ _stat_io_ops = 0
 
 _globals = globals()
 for io_op in [
+    "utime",
     "listdir",
     "isdir",
     "isfile",
@@ -137,6 +139,7 @@ io_callbacks = [
     run_global_threaded,
     compute_checksum,
     getmtime,
+    utime,
 ]
 
 GET_IO_OPS = (io_callbacks.index(get_global), ("_stat_io_ops",))
@@ -146,6 +149,7 @@ RUN_GLOBAL_CMD = io_callbacks.index(run_global_threaded)
 BUILD_ROOT_TREE_PROC = "proc_build_root_tree"
 COMPUTE_CHECKSUM_CMD = io_callbacks.index(compute_checksum)
 GETMTIME_CMD = io_callbacks.index(getmtime)
+UTIME_CMD = io_callbacks.index(utime)
 
 PROC_IO_TIMEOUT = 1.0
 
