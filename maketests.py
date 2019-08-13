@@ -4,11 +4,13 @@ from subprocess import \
     check_call as cmd
 
 from os.path import \
+    isfile, \
     join, \
     dirname, \
     exists
 
 from os import \
+    listdir, \
     rmdir, \
     mkdir, \
     remove, \
@@ -23,6 +25,10 @@ from copy import \
 
 from traceback import \
     print_exc
+
+from shutil import \
+    rmtree
+
 
 scriptDir = dirname(__file__)
 
@@ -109,8 +115,14 @@ class FSTestFile(FSTestNode):
         else:
             open(self.name, "w").close()
 
-    def remove(self):
-        remove(self.name)
+    def remove(self, **_):
+        # Note that `force` kw arg. means nothing there
+        try:
+            remove(self.name)
+            return True
+        except:
+            print_exc()
+            return False
 
     def __hash__(self):
         return hash(self.name)
@@ -133,21 +145,40 @@ class FSTestDir(FSTestNode):
     def enter(self):
         chdir(self.name)
 
-    def clear(self):
+    def clear(self, force = False):
+        res = True
         self.enter()
         for c in self.children.values():
             if c.exists():
-                c.remove()
+                if not c.remove(force = force):
+                    res = False
+        unexpected = list(listdir("."))
+        if unexpected:
+            if force:
+                for n in unexpected:
+                    if isfile(n):
+                        remove(n)
+                    else:
+                        rmtree(n)
+            else:
+                print("Nodes left in %s: " % self.path +
+                    ", ".join(unexpected)
+                )
+                res = False
         chdir("..")
+        return res
 
-    def remove(self):
+    def remove(self, force = False):
         if not exists(self.name):
-            return
-        self.clear()
+            return True
+        if not self.clear(force = force):
+            return False
         try:
             rmdir(self.name)
+            return True
         except:
             print_exc()
+            return False
 
     def generate(self):
         mkdir(self.name)
