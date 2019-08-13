@@ -54,6 +54,9 @@ class FSTestNode(object):
         for c in children:
             c.parent = self
 
+    def iter_children(self):
+        return iter(self.children.values())
+
     def addChild(self, child):
         assert child.parent is None
 
@@ -226,20 +229,25 @@ if __name__ == "__main__":
 
         stdout.write = writeFlush
 
-    root = FSTestDir("test1", dcp(baseFS))
-    root["root"].addChild(D("folderInTest1Only"))
+    root1 = FSTestDir("test1", dcp(baseFS))
+    root1["root"].addChild(D("folderInTest1Only"))
 
-    root.remove()
-    updateFS(root, verbose = verbose)
-
-    root = FSTestDir("test2", dcp(baseFS))
-    root["root"]["пустаяПапакаСКириллицейВНазвании"].addChild(
+    root2 = FSTestDir("test2", dcp(baseFS))
+    root2["root"]["пустаяПапакаСКириллицейВНазвании"].addChild(
         F("fileInTest2Only.txt", size = 22)
     )
 
     # Do several modifications
-    root[join("root", "soldFiles", "smallFile")].size += 13
-    root["root"]["dir"]["dir"].addChild(F("file"))
+    root2[join("root", "soldFiles", "smallFile")].size += 13
+    root2["root"]["dir"]["dir"].addChild(F("file"))
 
-    root.remove()
-    updateFS(root, verbose = verbose)
+    root3 = FSTestDir("test3", dcp(root2["root"]))
+
+    root3.remove()
+    updateFS(root3, verbose = verbose)
+
+    root1.remove()
+    updateFS(root1, verbose = verbose)
+
+    root2.remove()
+    updateFS(root2, verbose = verbose)
