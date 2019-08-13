@@ -54,6 +54,18 @@ class FSTestNode(object):
         for c in children:
             c.parent = self
 
+    def iter_path_reversed(self):
+        c = self
+        while c is not None:
+            yield c
+            c = c.parent
+
+    @property
+    def path(self):
+        return sep.join(reversed(list(
+            c.name for c in self.iter_path_reversed()
+        )))
+
     def iter_children(self):
         return iter(self.children.values())
 
