@@ -289,11 +289,11 @@ if __name__ == "__main__":
 
     root3 = FSTestDir("test3", dcp(root2["root"]))
 
-    root3.remove()
+    root3.remove(True)
     updateFS(root3, verbose = verbose)
 
-    root1.remove()
+    root1.remove(True)
     updateFS(root1, verbose = verbose)
 
-    root2.remove()
+    root2.remove(True)
     updateFS(root2, verbose = verbose)
