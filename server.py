@@ -247,3 +247,41 @@ else:
             rest -= len(chunk)
             data += chunk
         return loads(data)
+
+    def co_recv_data(s, out, rest):
+        recv = s.recv
+        data = b""
+        while rest:
+            try:
+                chunk = recv(rest)
+            except timeout:
+                yield
+                continue
+            if not chunk:
+                if data:
+                    raise RuntimeError("Unexpected connection shutdown")
+                else:
+                    return
+            rest -= len(chunk)
+            data += chunk
+        out[0] = data
+
+    def co_recv(s, out):
+        out[0] = None
+        for _ in co_recv_data(s, out, 4):
+            yield
+
+        raw_len = out[0]
+        if raw_len is None:
+            return
+        rest = unpack("!I", raw_len)[0]
+
+        out[0] = None
+        for _ in co_recv_data(s, out, rest):
+            yield
+
+        data = out[0]
+        if data is None:
+            raise RuntimeError("Unexpected connection shutdown")
+
+        out[0] = loads(data)
