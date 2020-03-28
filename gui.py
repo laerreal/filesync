@@ -27,7 +27,7 @@ from fs.config import (
 from fs.external import (
     add_scrollbars_native,
 )
-from server import (
+from fs.server import (
     send,
     co_recv,
 )

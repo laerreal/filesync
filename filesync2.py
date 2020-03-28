@@ -64,7 +64,7 @@ from time import (
 from multiprocessing import (
     Process
 )
-from server import (
+from fs.server import (
     UTIME_CMD,
     GETMTIME_CMD,
     COMPUTE_CHECKSUM_CMD,
