@@ -29,8 +29,6 @@ from fs.server2 import (
     HandlerFinished
 )
 
-from fs import *
-
 
 class ServerState(object):
 
