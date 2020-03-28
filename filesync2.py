@@ -81,7 +81,7 @@ from server import (
 from socket import (
     timeout,
 )
-from filemodel import (
+from fs.filemodel import (
     directory,
     file,
     FileInfo_infos
