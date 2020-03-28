@@ -18,13 +18,13 @@ class AnyServer(socket):
         self.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         # https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
         self.bind(("", 0))
+        self.listen(1)
 
     @property
     def port(self):
         return self.getsockname()[1]
 
     def accept_and_close(self):
-        self.listen(1)
         ret = self.accept()
         self.close()
         return ret
