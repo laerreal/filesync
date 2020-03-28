@@ -92,6 +92,9 @@ from widgets import (
 from common import (
     AnyServer
 )
+from fs.model import (
+    fs_path,
+)
 
 
 def text2content(text):
@@ -396,24 +399,7 @@ if __name__ == "__main__":
         print_exc()
         settings = {}
 
-    roots = list([d] for d in args.d)
-
-    # normalize paths
-    for d in roots:
-        for s in ["\\", "/"]:
-            for i, part in enumerate(list(d)):
-                subparts = part.split(s)
-                if len(subparts) == 1:
-                    continue
-                del d[i]
-                d[i:i] = subparts
-
-            if DEBUG_PATHS:
-                print(d)
-
-        for i, part in reversed(list(enumerate(list(d)))):
-            if not part:
-                del d[i]
+    roots = list(fs_path(d) for d in args.d)
 
     if args.forget:
         try:
