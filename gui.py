@@ -31,7 +31,7 @@ from fs.server import (
     send,
     co_recv,
 )
-from server2 import (
+from fs.server2 import (
     Error,
     HandlerFinished,
 )

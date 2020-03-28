@@ -13,7 +13,7 @@ from socket import (
 from threading import (
     Thread
 )
-from server import (
+from fs.server import (
     send,
     co_recv,
 )
@@ -23,6 +23,12 @@ from fs.folder import (
 from fs.config import (
     load_config
 )
+from fs.server2 import (
+    NoSuchCommand,
+    HandlerError,
+    HandlerFinished
+)
+
 from fs import *
 
 
@@ -66,20 +72,6 @@ def main():
         t.start()
 
     s.close()
-
-
-class Error:
-    pass
-
-class NoSuchCommand(Error):
-    pass
-
-class HandlerError(Error):
-    pass
-
-class HandlerFinished:
-    pass
-
 
 def client_func(c, state, cfg, name):
     buf = [None]
