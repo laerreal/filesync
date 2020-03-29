@@ -35,6 +35,9 @@ from fs.server2 import (
     Error,
     HandlerFinished,
 )
+from widgets.path_view import (
+    PathView
+)
 from bisect import (
     bisect
 )
@@ -52,6 +55,13 @@ class GUI(Tk):
         self.columnconfigure(0, weight = 1)
 
         row = 0
+        self.rowconfigure(row, weight = 0)
+
+        self.pv = pv = PathView(self)
+        pv.grid(row = row, column = 0, columnspan = 2, sticky = "NESW")
+        pv.bind("<<PathChanged>>", self._pv_path_changed)
+
+        row += 1
         self.rowconfigure(row, weight = 1)
 
         self.tv_files = tv_files = Treeview(self)
@@ -68,6 +78,9 @@ class GUI(Tk):
         self._iids = []
 
         self._gui_lock = Lock()
+
+    def _pv_path_changed(self, e):
+        self.current = e.widget.path[1:]
 
     def _tv_files_double_1(self, e):
         tv = e.widget
@@ -130,6 +143,8 @@ class GUI(Tk):
         del self._folders[:]
 
         self.issue_command_all("get_nodes", path)
+
+        self.pv.path = ("",) + path
 
     def issue_command_all(self, command, *args):
         handler = getattr(self, "co_" + command)
