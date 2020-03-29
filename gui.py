@@ -61,7 +61,7 @@ class GUI(Tk):
         tv_files.bind("<Double-1>", self._tv_files_double_1)
 
         tv_files.grid(row = row, column = 0, sticky = "NESW")
-        add_scrollbars_native(self, tv_files, sizegrip = True)
+        add_scrollbars_native(self, tv_files, row = row, sizegrip = True)
 
         self._current = None
         self._folders = []
