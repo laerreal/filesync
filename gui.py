@@ -178,7 +178,10 @@ class GUI(Tk):
 
         while self.working:
             try:
-                command, args, co_handler = commands.get(block = False)
+                command, args, co_handler = commands.get(
+                    block = not bool(handlers),
+                    timeout = 0.1
+                )
             except Empty:
                 if handlers:
                     try:
