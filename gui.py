@@ -104,7 +104,7 @@ class GUI(Tk):
 
         for srv in servers:
             q = Queue()
-            t = Thread(target = self.server_connection, args = (srv, q))
+            t = Thread(target = self._server_connection, args = (srv, q))
             t.start()
             threads[srv] = (t, q)
 
@@ -147,7 +147,7 @@ class GUI(Tk):
         self.pv.path = ("",) + path
 
     def issue_command_all(self, command, *args):
-        handler = getattr(self, "co_" + command)
+        handler = getattr(self, "_co_handler_" + command)
 
         # one handler per server
         for _, q in self.threads.values():
@@ -155,7 +155,7 @@ class GUI(Tk):
             next(co_handler)
             q.put((command, args, co_handler))
 
-    def server_connection(self, srv, commands):
+    def _server_connection(self, srv, commands):
         s = socket(AF_INET, SOCK_STREAM)
         s.settimeout(0.1)
 
@@ -212,7 +212,7 @@ class GUI(Tk):
 
         print("Ending thread for " + str(srv))
 
-    def co_get_nodes(self, path):
+    def _co_handler_get_nodes(self, path):
         folders = self._folders
         iids = self._iids
         tv = self.tv_files
