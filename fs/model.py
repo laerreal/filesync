@@ -45,7 +45,13 @@ DEFAULT_ACCESS_RULES = (DEFAULT_ACCESS_RULE,)
 
 class MountPoint(object):
 
-    def __init__(self, local_path, network_path, rules = DEFAULT_ACCESS_RULES):
+    def __init__(self, local_path, network_path,
+        rules = DEFAULT_ACCESS_RULES,
+        salt = 0
+    ):
+        """
+@param salt: for ID unicity
+        """
         if isinstance(local_path, text_type):
             local_path = fs_path(local_path)
 
@@ -58,6 +64,9 @@ class MountPoint(object):
         self.local_path = local_path
         self.network_path = network_path
         self.rules = list(rules)
+        self.salt = salt
+
+        self.id = hash((local_path, network_path, salt))
 
     @property
     def folder(self):
@@ -70,6 +79,14 @@ class MountPoint(object):
 class FileSystem(object):
 
     def __init__(self, mount_points = tuple()):
+        # All mount points must have unique IDs
+        self.id2mp = id2mp = {}
+        for mp in mount_points:
+            if id2mp.setdefault(mp.id, mp) is not mp:
+                raise ValueError(
+                    "Mount point '%s' has same ID as '%s'" % (mp, id2mp[mp.id])
+                )
+
         self.mount_points = list(mount_points)
 
     def get_nodes(self, network_path = tuple()):
