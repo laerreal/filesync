@@ -60,6 +60,9 @@ class PathView(Frame):
         e.bind("<Escape>", self._entry_escape, "+")
         e.bind("<Return>", self._entry_return, "+") # Enter
 
+        # Entering to editable mode on mouse click on empty space
+        self.bind("<Button-1>", self._button_1, "+")
+
         # initialize
         self.editable = editable
         self.full_path = full_path
@@ -271,3 +274,12 @@ class PathView(Frame):
 
         self.editable = False
 
+    def _button_1(self, __):
+        self.editable = True
+
+        e = self._entry
+        e.selection_range(0, END)
+        e.icursor(END)
+        e.focus_set()
+
+        return "break"
