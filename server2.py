@@ -1,6 +1,6 @@
 from traceback import (
     print_exc,
-    format_exception,
+    format_exc,
 )
 from socket import (
     timeout,
@@ -126,7 +126,7 @@ def executor_func(c, lock, state, cfg, cmd_id, handler, args):
             with lock:
                 send(c, (cmd_id, ret))
     except:
-        exc = format_exception()
+        exc = format_exc()
         with lock:
             send(c, (cmd_id, HandlerError, exc))
     else:
