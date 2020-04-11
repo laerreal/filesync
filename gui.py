@@ -137,6 +137,8 @@ class GUI(Tk):
 self._sorter = sorter
         """
 
+        # print(sorter_code)
+
         with self._gui_lock:
             exec(sorter_code)
             self._reorder()
@@ -160,6 +162,8 @@ self._sorter = sorter
             folders.insert(idx, f)
             iids.insert(idx, iid)
             move(iid, "", idx)
+
+        # print("order = %s" % folders)
 
     def _pv_path_changed(self, e):
         self.current = e.widget.path[1:]
@@ -322,6 +326,8 @@ self._sorter = sorter
             with lock:
                 idx = self._sorter(code)
                 folders.insert(idx, code)
+
+                # print(idx, code)
 
                 iid = tv.insert("", idx, text = code)
                 iids.insert(idx, iid)
