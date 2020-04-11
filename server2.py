@@ -40,6 +40,12 @@ class ServerState(object):
         self.working = True
 
 
+class ClientState(object):
+
+    def __init__(self, server):
+        self.server = server
+
+
 def main():
     try:
         cfg = load_config()
@@ -84,12 +90,14 @@ def main():
 
     s.close()
 
-def client_func(c, state, cfg, name):
+def client_func(c, server, cfg, name):
+    state = ClientState(server)
+
     buf = [None]
     receiver = co_recv(c, buf)
     lock = Lock()
 
-    while state.working:
+    while state.server.working:
         try:
             next(receiver)
         except StopIteration:
