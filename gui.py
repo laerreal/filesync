@@ -49,8 +49,11 @@ from bisect import (
 class GUI(Tk):
 
     def __init__(self, cfg):
+        # Initial data
         self.cfg = cfg
 
+
+        # Widgets
         Tk.__init__(self)
 
         self.title("Files")
@@ -76,6 +79,7 @@ class GUI(Tk):
         tv_files.grid(row = row, column = 0, sticky = "NESW")
         add_scrollbars_native(self, tv_files, row = row, sizegrip = True)
 
+        # Runtime state
         self._current = None
         self._folders = []
         self._iids = []
