@@ -29,6 +29,9 @@ from fs.server2 import (
     HandlerError,
     HandlerFinished
 )
+from fs.model import (
+    AccessPrivate,
+)
 
 
 class ServerState(object):
