@@ -262,6 +262,10 @@ self._sorter = sorter
                 continue
             break
 
+        if not retries:
+            print("Cannot connect")
+            return
+
         s.settimeout(0.1)
 
         print("Connected to " + str(srv))
