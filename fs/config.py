@@ -16,7 +16,8 @@ class Config(object):
         for k, v in cfg.items():
             setattr(self, k, v)
 
-CFG_FILE_NAME = join(expanduser("~"), ".filesync.cfg.py")
+
+CFG_FILE_NAME = join(expanduser("~"), ".filesync", "cfg.py")
 
 def load_config():
     with open(CFG_FILE_NAME, "r") as f:
