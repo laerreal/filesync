@@ -155,17 +155,26 @@ class GUI(Tk):
             next(co_handler)
             q.put((command, args, co_handler))
 
-    def _server_connection(self, srv, commands):
+    def _server_connection(self, srv, commands, retries = 5):
         s = socket(AF_INET, SOCK_STREAM)
-        s.settimeout(0.1)
 
-        while self.working:
+        # Before connection timeout is big
+        s.settimeout(1.)
+
+        while self.working and retries:
             print("Connecting to " + str(srv))
             try:
                 s.connect(srv)
             except timeout:
                 continue
+            except:
+                print_exc()
+                print("retrying %d" % retries)
+                retries -= 1
+                continue
             break
+
+        s.settimeout(0.1)
 
         print("Connected to " + str(srv))
 
