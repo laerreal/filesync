@@ -138,6 +138,9 @@ def cmd_get_nodes(state, cfg, path = tuple()):
                 continue
         yield node
 
+def cmd_identify_self(state, cfg):
+    yield cfg.name
+
 
 if __name__ == "__main__":
     exit(main() or 0)
