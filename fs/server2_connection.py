@@ -43,6 +43,10 @@ class Server2Connection(Thread):
         next(co_handler)
         self.commands.put((command, args, co_handler))
 
+    def issue(self, command, *a):
+        handler = getattr(self, "_co_handler_" + command)
+        self.issue_command(handler, command, *a)
+
     def main(self):
         retries = self.retries
         url = self.url
