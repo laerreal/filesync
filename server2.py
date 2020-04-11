@@ -11,7 +11,8 @@ from socket import (
     SOCK_STREAM
 )
 from threading import (
-    Thread
+    Thread,
+    Lock,
 )
 from fs.server import (
     send,
@@ -83,6 +84,7 @@ def main():
 def client_func(c, state, cfg, name):
     buf = [None]
     receiver = co_recv(c, buf)
+    lock = Lock()
 
     while state.working:
         try:
@@ -107,22 +109,26 @@ def client_func(c, state, cfg, name):
 
         t = Thread(
             target = executor_func,
-            args = (c, state, cfg, cmd_id, handler, args)
+            args = (c, lock, state, cfg, cmd_id, handler, args)
         )
         t.start()
 
     print("Clent %s thread ending" % name)
 
 
-def executor_func(c, state, cfg, cmd_id, handler, args):
+def executor_func(c, lock, state, cfg, cmd_id, handler, args):
     co = handler(state, cfg, *args)
     try:
         for ret in co:
-            send(c, (cmd_id, ret))
+            with lock:
+                send(c, (cmd_id, ret))
     except:
-        send(c, (cmd_id, HandlerError, format_exception()))
+        exc = format_exception()
+        with lock:
+            send(c, (cmd_id, HandlerError, exc))
     else:
-        send(c, (cmd_id, HandlerFinished))
+        with lock:
+            send(c, (cmd_id, HandlerFinished))
 
 
 def cmd_get_nodes(state, cfg, path = tuple()):
