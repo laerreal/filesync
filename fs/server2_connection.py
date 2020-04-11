@@ -21,6 +21,9 @@ from .server import (
 from traceback import (
     print_exc,
 )
+from .server2 import (
+    HandlerFinished,
+)
 
 
 class Server2Connection(Thread):
@@ -97,7 +100,14 @@ class Server2Connection(Thread):
                         continue
 
                     cmd_id = res[0]
-                    h = handlers[cmd_id]
+                    try:
+                        h = handlers[cmd_id]
+                    except KeyError:
+                        # local handler can finish before remote handler
+                        if cmd_id < next_id and res[1] is not HandlerFinished:
+                            raise
+                        continue
+
                     try:
                         h.send(res[1:])
                     except StopIteration:
