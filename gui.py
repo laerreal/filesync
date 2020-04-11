@@ -179,10 +179,7 @@ self._sorter = sorter
 
     def mainloop(self, *args, **kwargs):
         cfg = self.cfg
-
-        servers = [
-            ("localhost", cfg.port),
-        ]
+        servers = cfg.servers
 
         self.working = True
 
@@ -344,6 +341,12 @@ def main():
         print_exc()
         print("Can't load config")
         return 1
+
+    servers = cfg.servers
+
+    local_server = ("localhost", cfg.port)
+    if local_server not in servers:
+        servers.append(local_server)
 
     root = GUI(cfg)
     root.mainloop()
