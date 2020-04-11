@@ -46,6 +46,8 @@ def main():
 
     state = ServerState()
 
+    print(cfg.fs.tree_str())
+
     s = socket(AF_INET, SOCK_STREAM)
     s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     s.bind(("localhost", cfg.port))
