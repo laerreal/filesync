@@ -1,5 +1,7 @@
 from six.moves.tkinter import (
+    BooleanVar,
     Tk,
+    Menu,
 )
 from six.moves.tkinter_ttk import (
     Treeview,
@@ -60,6 +62,17 @@ class GUI(Tk):
 
         self.title("Files")
 
+        menubar = Menu(self)
+        self.config(menu = menubar)
+
+        viewbar = Menu(menubar)
+        menubar.add_cascade(label = "View", menu = viewbar)
+
+        self._var_caps_insensible_order = var = BooleanVar(self)
+        var.set(self._caps_insensible_order)
+        var.trace_variable("w", self._caps_insensible_order_tracer)
+        viewbar.add_checkbutton(label = "Ignore caps", variable = var)
+
         self.columnconfigure(0, weight = 1)
 
         row = 0
@@ -103,8 +116,12 @@ class GUI(Tk):
         if self._caps_insensible_order is b:
             return
         self._caps_insensible_order = b
+        self._var_caps_insensible_order.set(b)
 
         self._update_sorter()
+
+    def _caps_insensible_order_tracer(self, *__):
+        self.caps_insensible_order = self._var_caps_insensible_order.get()
 
     def _update_sorter(self):
         sorter_code = "def sorter(container, cache = self._sorter_cache):\n"
