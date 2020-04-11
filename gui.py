@@ -52,6 +52,8 @@ class GUI(Tk):
         # Initial data
         self.cfg = cfg
 
+        # Properties
+        self._caps_insensible_order = True
 
         # Widgets
         Tk.__init__(self)
@@ -91,8 +93,24 @@ class GUI(Tk):
         # Startup
         self._update_sorter()
 
+    @property
+    def caps_insensible_order(self):
+        return self.caps_insensible_order
+
+    @caps_insensible_order.setter
+    def caps_insensible_order(self, b):
+        b = bool(b)
+        if self._caps_insensible_order is b:
+            return
+        self._caps_insensible_order = b
+
+        self._update_sorter()
+
     def _update_sorter(self):
         sorter_code = "def sorter(container, cache = self._sorter_cache):\n"
+
+        if self._caps_insensible_order:
+            sorter_code += "    container = container.lower()\n"
 
         sorter_code += """\
     index = bisect(cache, container)
