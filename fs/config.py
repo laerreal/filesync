@@ -10,6 +10,7 @@ class Config(object):
     __slots__ = (
         "fs",
         "port",
+        "name",
     )
 
     def __init__(self, **cfg):

@@ -44,6 +44,13 @@ def main():
         print("Can't load config")
         return 1
 
+    try:
+        assert bool(cfg.name)
+    except:
+        print_exc()
+        print("Must have a name")
+        return 1
+
     state = ServerState()
 
     print(cfg.fs.tree_str())
