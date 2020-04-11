@@ -11,20 +11,6 @@ from traceback import (
 )
 from threading import (
     Lock,
-    Thread,
-)
-from time import (
-    sleep,
-)
-from queue import (
-    Empty,
-    Queue,
-)
-from socket import (
-    timeout,
-    socket,
-    AF_INET,
-    SOCK_STREAM
 )
 from fs.config import (
     load_config,
@@ -32,13 +18,12 @@ from fs.config import (
 from fs.external import (
     add_scrollbars_native,
 )
-from fs.server import (
-    send,
-    co_recv,
-)
 from fs.server2 import (
     Error,
     HandlerFinished,
+)
+from fs.server2_connection import (
+    Server2Connection,
 )
 from widgets.path_view import (
     PathView
@@ -181,24 +166,22 @@ self._sorter = sorter
         cfg = self.cfg
         servers = cfg.servers
 
-        self.working = True
-
         self.threads = threads = {}
 
         for srv in servers:
-            q = Queue()
-            t = Thread(target = self._server_connection, args = (srv, q))
+            t = Server2Connection(srv)
             t.start()
-            threads[srv] = (t, q)
+            threads[srv] = t
 
         self.after(1, self._startup)
 
         ret = Tk.mainloop(self, *args, **kwargs)
 
-        self.working = False
+        for t in threads.values():
+            t.working = False
 
         for t in threads.values():
-            t[0].join()
+            t.join()
 
         return ret
 
@@ -234,81 +217,8 @@ self._sorter = sorter
         handler = getattr(self, "_co_handler_" + command)
 
         # one handler per server
-        for _, q in self.threads.values():
-            co_handler = handler(*args)
-            next(co_handler)
-            q.put((command, args, co_handler))
-
-    def _server_connection(self, srv, commands, retries = 5):
-        s = socket(AF_INET, SOCK_STREAM)
-
-        # Before connection timeout is big
-        s.settimeout(1.)
-
-        while self.working and retries:
-            print("Connecting to " + str(srv))
-            try:
-                s.connect(srv)
-            except timeout:
-                continue
-            except:
-                print_exc()
-                sleep(1.)
-                print("retrying %d" % retries)
-                retries -= 1
-                continue
-            break
-
-        if not retries:
-            print("Cannot connect")
-            return
-
-        s.settimeout(0.1)
-
-        print("Connected to " + str(srv))
-
-        next_id = 1
-
-        handlers = {}
-
-        buf = [None]
-        receiver = co_recv(s, buf)
-
-        while self.working:
-            try:
-                command, args, co_handler = commands.get(
-                    block = not bool(handlers),
-                    timeout = 0.1
-                )
-            except Empty:
-                if handlers:
-                    try:
-                        next(receiver)
-                    except StopIteration:
-                        res = buf[0]
-                        buf[0] = None
-                        receiver = co_recv(s, buf)
-                    else:
-                        continue
-
-                    cmd_id = res[0]
-                    h = handlers[cmd_id]
-                    try:
-                        h.send(res[1:])
-                    except StopIteration:
-                        del handlers[cmd_id]
-
-                continue
-
-            send(s, (next_id, command, args))
-            handlers[next_id] = co_handler
-
-            next_id += 1
-
-        print("Disconnecting from " + str(srv))
-        s.close()
-
-        print("Ending thread for " + str(srv))
+        for t in self.threads.values():
+            t.issue_command(handler, command, *args)
 
     def _co_handler_get_nodes(self, path):
         folders = self._folders
