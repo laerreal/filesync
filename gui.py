@@ -11,6 +11,9 @@ from threading import (
     Lock,
     Thread,
 )
+from time import (
+    sleep,
+)
 from queue import (
     Empty,
     Queue,
@@ -169,6 +172,7 @@ class GUI(Tk):
                 continue
             except:
                 print_exc()
+                sleep(1.)
                 print("retrying %d" % retries)
                 retries -= 1
                 continue
