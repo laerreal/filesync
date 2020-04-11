@@ -11,9 +11,12 @@ class Config(object):
         "fs",
         "port",
         "name",
+        "servers"
     )
 
     def __init__(self, **cfg):
+        cfg.setdefault("servers", [])
+
         for k, v in cfg.items():
             setattr(self, k, v)
 
