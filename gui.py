@@ -42,7 +42,7 @@ from widgets.path_view import (
     PathView
 )
 from bisect import (
-    bisect
+    bisect # used by auto gnerated `sorter`, see `_update_sorter`
 )
 
 
@@ -85,6 +85,46 @@ class GUI(Tk):
         self._iids = []
 
         self._gui_lock = Lock()
+
+        self._sorter_cache = []
+
+        # Startup
+        self._update_sorter()
+
+    def _update_sorter(self):
+        sorter_code = "def sorter(container, cache = self._sorter_cache):\n"
+
+        sorter_code += """\
+    index = bisect(cache, container)
+    cache.insert(index, container)
+    return index
+
+self._sorter = sorter
+        """
+
+        with self._gui_lock:
+            exec(sorter_code)
+            self._reorder()
+
+    def _reorder(self):
+        folders = self._folders
+        prev_folders = list(folders)
+        del folders[:]
+
+        iids = self._iids
+        prev_iids = list(iids)
+        del iids[:]
+
+        move = self.tv_files.move
+
+        del self._sorter_cache[:]
+        sorter = self._sorter
+
+        for f, iid in zip(prev_folders, prev_iids):
+            idx = sorter(f)
+            folders.insert(idx, f)
+            iids.insert(idx, iid)
+            move(iid, "", idx)
 
     def _pv_path_changed(self, e):
         self.current = e.widget.path[1:]
@@ -148,6 +188,7 @@ class GUI(Tk):
             del iid2s[:]
 
         del self._folders[:]
+        del self._sorter_cache[:]
 
         self.issue_command_all("get_nodes", path)
 
@@ -244,7 +285,7 @@ class GUI(Tk):
                 break
 
             with lock:
-                idx = bisect(folders, code)
+                idx = self._sorter(code)
                 folders.insert(idx, code)
 
                 iid = tv.insert("", idx, text = code)
