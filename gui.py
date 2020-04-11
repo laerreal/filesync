@@ -22,8 +22,8 @@ from fs.server2 import (
     Error,
     HandlerFinished,
 )
-from fs.server2_connection import (
-    Server2Connection,
+from fs.gui_server2_connection import (
+    GUIServer2Connection,
 )
 from widgets.path_view import (
     PathView
@@ -49,6 +49,12 @@ class GUI(Tk):
 
         menubar = Menu(self)
         self.config(menu = menubar)
+
+        serversbar = Menu(menubar)
+        menubar.add_cascade(label = "Servers", menu = serversbar)
+
+        self._serversbar = serversbar
+        self._serversbars = {} # thread -> idx
 
         viewbar = Menu(menubar)
         menubar.add_cascade(label = "View", menu = viewbar)
@@ -168,10 +174,22 @@ self._sorter = sorter
 
         self.threads = threads = {}
 
+        serversbar = self._serversbar
+        servers_bars = self._serversbars
+
         for srv in servers:
-            t = Server2Connection(srv)
-            t.start()
+            t = GUIServer2Connection(srv, self)
             threads[srv] = t
+
+            serversbar.add_command(
+                label = "%s [initialized]" % repr(srv),
+            )
+            servers_bars[t] = len(servers_bars) + (
+                # tearoff line is an entry that has index
+                1 if serversbar.cget("tearoff") else 0
+            )
+
+            t.start()
 
         self.after(1, self._startup)
 
@@ -256,6 +274,24 @@ self._sorter = sorter
 
                 iid = tv.insert("", idx, text = code)
                 iids.insert(idx, iid)
+
+    def __conn_started__(self, t):
+        idx = self._serversbars[t]
+        self._serversbar.entryconfig(idx,
+            label = "%s [started]" % repr(t.url)
+        )
+
+    def __conn_stopped__(self, t):
+        idx = self._serversbars[t]
+        self._serversbar.entryconfig(idx,
+            label = "%s [stopped]" % repr(t.url)
+        )
+
+    def __conn_name__(self, t, name):
+        idx = self._serversbars[t]
+        self._serversbar.entryconfig(idx,
+            label = "%s %r [operation]" % (name, t.url)
+        )
 
 
 def main():
