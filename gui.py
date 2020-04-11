@@ -175,18 +175,32 @@ self._sorter = sorter
 
         self.after(1, self._startup)
 
+        self.protocol("WM_DELETE_WINDOW", self._wm_delete_window)
+
         ret = Tk.mainloop(self, *args, **kwargs)
-
-        for t in threads.values():
-            t.working = False
-
-        for t in threads.values():
-            t.join()
 
         return ret
 
     def _startup(self):
         self.current = tuple()
+
+    def _wm_delete_window(self):
+        # TODO: confirmation
+        self.after(1, self._finalize)
+
+    def _finalize(self):
+        for t in self.threads.values():
+            t.working = False
+
+        self.after(1, self._wait_for_threads)
+
+    def _wait_for_threads(self):
+        for t in self.threads.values():
+            if t.is_alive():
+                self.after(100, self._wait_for_threads)
+                return
+
+        self.destroy()
 
     @property
     def current(self):
