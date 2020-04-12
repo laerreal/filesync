@@ -261,10 +261,11 @@ self._sorter = sorter
         while True:
             res = yield
             code = res[0]
-            if code is HandlerFinished:
-                break
-            if code is Error:
-                break
+            if isinstance(code, type):
+                if code is HandlerFinished:
+                    break
+                if issubclass(code, Error):
+                    break
 
             with lock:
                 idx = self._sorter(code)
