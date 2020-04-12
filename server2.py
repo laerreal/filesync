@@ -32,11 +32,18 @@ from fs.server2 import (
 from fs.model import (
     AccessPrivate,
 )
+from fs.identity import (
+    Identity,
+)
+from fs.session import (
+    Session,
+)
 
 
 class ServerState(object):
 
-    def __init__(self):
+    def __init__(self, identity):
+        self.identity = identity
         self.working = True
 
 
@@ -44,6 +51,13 @@ class ClientState(object):
 
     def __init__(self, server):
         self.server = server
+
+    @property
+    def trusted(self):
+        try:
+            return self.session.trusted
+        except AttributeError:
+            return False
 
 
 def main():
@@ -61,7 +75,12 @@ def main():
         print("Must have a name")
         return 1
 
-    state = ServerState()
+    identity = Identity()
+    if not identity.open_ui(passphrase = cfg.passphrase):
+        print("Authentication is required")
+        return 1
+
+    state = ServerState(identity)
 
     print(cfg.fs.tree_str())
 
@@ -113,6 +132,13 @@ def client_func(c, server, cfg, name):
         receiver = co_recv(c, buf)
 
         cmd_id, command, args = msg
+
+        if not state.trusted:
+            if command not in PUBLIC_COMMANDS:
+                with lock:
+                    send(c, (cmd_id, NoSuchCommand))
+                continue
+
         try:
             handler = globals()["cmd_" + command]
         except KeyError:
@@ -151,8 +177,26 @@ def cmd_get_nodes(state, cfg, path = tuple()):
                 continue
         yield node
 
+
+PUBLIC_COMMANDS = (
+    "identify_self",
+    "auth1",
+    "auth2",
+)
+
 def cmd_identify_self(state, cfg):
     yield cfg.name
+
+def cmd_auth1(state, cfg, client_name, client_pub_key_data):
+    state.client_name = client_name
+    state.session = session = Session(
+        state.server.identity, client_pub_key_data
+    )
+    yield session.challenge_message
+
+def cmd_auth2(state, cfg, challenge_solution):
+    state.session.check_solution(challenge_solution)
+    yield
 
 
 if __name__ == "__main__":

@@ -1,6 +1,12 @@
 from .server2_connection import (
     Server2Connection,
 )
+from .server2 import (
+    HandlerError,
+)
+from .session import (
+    Session
+)
 
 
 class GUIServer2Connection(Server2Connection):
@@ -32,3 +38,25 @@ class GUIServer2Connection(Server2Connection):
         name = (yield)[0]
         self.server_name = name
         self._notify_gui("name", name)
+
+    def authenticate(self, name, identity):
+        self.identity = identity
+        self.issue("auth1", name, identity.pub_key_data)
+
+    def _co_handler_auth1(self, *__):
+        challenge_message = yield
+
+        if challenge_message[0] is HandlerError:
+            # print(challenge_message[1])
+            return
+
+        challenge, server_pub_key_data = challenge_message[0]
+
+        self.session = session = Session(self.identity, server_pub_key_data)
+
+        challenge_solution = session.solve_challenge(challenge)
+
+        self.issue("auth2", challenge_solution)
+
+    def _co_handler_auth2(self, *__):
+        yield
