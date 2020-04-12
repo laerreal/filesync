@@ -116,7 +116,9 @@ def client_func(c, server, cfg, name):
         try:
             handler = globals()["cmd_" + command]
         except KeyError:
-            send(c, (cmd_id, NoSuchCommand))
+            with lock:
+                send(c, (cmd_id, NoSuchCommand))
+            continue
 
         t = Thread(
             target = executor_func,
