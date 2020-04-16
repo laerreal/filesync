@@ -8,8 +8,8 @@ from six.moves.tkinter import (
     END,
     FLAT,
 )
-from itertools import (
-    zip_longest
+from six.moves import (
+    zip_longest as izip_longest,
 )
 from os.path import (
     sep
@@ -117,7 +117,7 @@ class PathView(Frame):
         update_path = False
         changed = False
 
-        for i, (bt, prev_name, name) in enumerate(zip_longest(
+        for i, (bt, prev_name, name) in enumerate(izip_longest(
             list(bts), prev_full_path, full_path
         )):
             if bt is None:
@@ -169,12 +169,12 @@ class PathView(Frame):
     @path.setter
     def path(self, path):
         prev_path = self._path
-        for i, (prev, name) in enumerate(zip_longest(prev_path, path)):
+        for i, (prev, name) in enumerate(izip_longest(prev_path, path)):
             if prev is None:
                 # new path is longer but same as previous in common prefix
                 assert name is not None
 
-                for fp, name in zip_longest(self._full_path[i:], path[i:]):
+                for fp, name in izip_longest(self._full_path[i:], path[i:]):
                     if name is None:
                         break
                     elif fp is None or fp != name:
