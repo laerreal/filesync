@@ -32,6 +32,9 @@ from fs.server2 import (
 from fs.model import (
     AccessPrivate,
 )
+from common.safeprint import (
+    safeprint,
+)
 
 
 class ServerState(object):
@@ -63,7 +66,7 @@ def main():
 
     state = ServerState()
 
-    print(cfg.fs.tree_str())
+    safeprint(cfg.fs.tree_str())
 
     s = socket(AF_INET, SOCK_STREAM)
     s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
