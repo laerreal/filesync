@@ -105,3 +105,23 @@ class MessageBox(Dialog):
         if self.entry_type is not MB_NO_ENTRY:
             self._result = self._var.get()
         self.destroy()
+
+
+class DialogContext(object):
+
+    def __init__(self, master, title):
+        self.master = master
+        self.title = title
+
+    def getpass(self, prompt):
+        return MessageBox(self.master, self.title,
+            message = prompt,
+            entry_type = EM_ENTRY_PASSWORD
+        ).wait()
+
+    def notify(self, message):
+        return MessageBox(self.master, self.title,
+            message = message,
+            entry_type = MB_NO_ENTRY
+        ).wait()
+

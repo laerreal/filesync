@@ -11,17 +11,20 @@ class Config(object):
         "fs",
         "port",
         "name",
-        "servers"
+        "servers",
+        "passphrase",
     )
 
     def __init__(self, **cfg):
         cfg.setdefault("servers", [])
+        cfg.setdefault("passphrase", None)
 
         for k, v in cfg.items():
             setattr(self, k, v)
 
 
-CFG_FILE_NAME = join(expanduser("~"), ".filesync", "cfg.py")
+CFG_DIRECTORY = join(expanduser("~"), ".filesync")
+CFG_FILE_NAME = join(CFG_DIRECTORY, "cfg.py")
 
 def load_config():
     with open(CFG_FILE_NAME, "r") as f:

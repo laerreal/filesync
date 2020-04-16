@@ -25,8 +25,14 @@ from fs.server2 import (
 from fs.gui_server2_connection import (
     GUIServer2Connection,
 )
+from fs.identity import (
+    Identity,
+)
 from widgets.path_view import (
     PathView
+)
+from widgets.dialog import (
+    DialogContext,
 )
 from bisect import (
     bisect # used by auto gnerated `sorter`, see `_update_sorter`
@@ -93,6 +99,8 @@ class GUI(Tk):
         self._gui_lock = Lock()
 
         self._sorter_cache = []
+
+        self._identity = Identity()
 
         # Startup
         self._update_sorter()
@@ -201,6 +209,20 @@ self._sorter = sorter
 
     def _startup(self):
         self.current = tuple()
+
+        self.after(1, self._open_identity)
+
+    def _open_identity(self):
+        dialogs = DialogContext(self, "Authentication")
+        if not self._identity.open_ui(
+                getpass = dialogs.getpass,
+                feedback = dialogs.notify,
+                passphrase = self.cfg.passphrase,
+            ):
+            return
+
+        for t in self.threads.values():
+            t.authenticate(self.cfg.name, self._identity)
 
     def _wm_delete_window(self):
         # TODO: confirmation
