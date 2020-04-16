@@ -137,4 +137,4 @@ class Identity(object):
             except StopIteration: # success
                 return True
             finally:
-                del passphrase
+                passphrase = None

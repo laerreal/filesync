@@ -208,8 +208,6 @@ self._sorter = sorter
         return ret
 
     def _startup(self):
-        self.current = tuple()
-
         self.after(1, self._open_identity)
 
     def _open_identity(self):
@@ -315,6 +313,9 @@ self._sorter = sorter
         self._serversbar.entryconfig(idx,
             label = "%s %r [operation]" % (name, t.url)
         )
+
+    def __conn_authorized__(self, t):
+        self.current = tuple()
 
 
 def main():

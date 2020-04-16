@@ -24,6 +24,12 @@ class Session(object):
         self.trusted = False
 
     @property
+    def aes(self):
+        # Note that some implementations are not reusable and raises:
+        # TypeError: encrypt() cannot be called after decrypt()
+        return AES.new(self.session_key, AES.MODE_CFB, self.iv)
+
+    @property
     def challenge_message(self):
         return (self.challenge, self.identity.pub_key_data)
 
@@ -31,7 +37,6 @@ class Session(object):
     def challenge(self):
         self.session_key = session_key = get_random_bytes(32) # 256 bits
         self.iv = iv = get_random_bytes(16) # initialization vector
-        self.aes = AES.new(session_key, AES.MODE_CFB, iv)
 
         priv = iv + session_key
         # TODO: is padding required for PKCS1_OAEP?
@@ -54,15 +59,14 @@ class Session(object):
         private = self.oaep.decrypt(enc_private)
         self.session_private = private
 
-        self.iv = iv = private[:16]
-        self.session_key = session_key = private[16:16 + 32]
+        self.iv = private[:16]
+        self.session_key = private[16:16 + 32]
 
-        self.aes = aes = AES.new(session_key, AES.MODE_CFB, iv)
-        self.session_seed = seed = aes.decrypt(enc_seed)
+        self.session_seed = seed = self.aes.decrypt(enc_seed)
 
         resp = seed[::-1]
 
-        return aes.encrypt(resp)
+        return self.aes.encrypt(resp)
 
     def check_solution(self, challenge_solution):
         resp = self.aes.decrypt(challenge_solution)

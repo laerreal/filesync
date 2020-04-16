@@ -198,8 +198,7 @@ def cmd_auth1(state, cfg, client_name, client_pub_key_data):
     yield session.challenge_message
 
 def cmd_auth2(state, cfg, challenge_solution):
-    state.session.check_solution(challenge_solution)
-    yield
+    yield state.session.check_solution(challenge_solution)
 
 
 if __name__ == "__main__":

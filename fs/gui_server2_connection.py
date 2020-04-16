@@ -59,4 +59,7 @@ class GUIServer2Connection(Server2Connection):
         self.issue("auth2", challenge_solution)
 
     def _co_handler_auth2(self, *__):
-        yield
+        if (yield):
+            self._notify_gui("authorized")
+        else:
+            self._notify_gui("not_authorized")
