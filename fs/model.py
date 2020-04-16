@@ -11,13 +11,23 @@ from .folder import (
     NameNotExists,
     folder
 )
+from six import (
+    binary_type,
+)
 
 
 re_path_sep = compile(r"[/\\]")
 
 def fs_path(string):
-    return tuple(re_path_sep.split(string))
-
+    if isinstance(string, tuple):
+        ret = tuple()
+        for e in string:
+            ret += fs_path(e)
+    else:
+        if isinstance(string, binary_type):
+            string = string.decode("utf-8")
+        ret = tuple(re_path_sep.split(string))
+    return ret
 
 class AccessRule(object):
 
@@ -52,14 +62,8 @@ class MountPoint(object):
         """
 @param salt: for ID unicity
         """
-        if isinstance(local_path, text_type):
-            local_path = fs_path(local_path)
-
-        if isinstance(network_path, text_type):
-            network_path = fs_path(network_path)
-
-        assert isinstance(local_path, tuple)
-        assert isinstance(network_path, tuple)
+        local_path = fs_path(local_path)
+        network_path = fs_path(network_path)
 
         self.local_path = local_path
         self.network_path = network_path
