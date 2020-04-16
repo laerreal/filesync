@@ -128,7 +128,7 @@ class PathView(Frame):
                 assert prev_name is None
 
                 bt = self._button(i)
-                bt.config(text = name)
+                bt.config(text = name or "   ")
                 bts.append(bt)
                 self.columnconfigure(i, weight = 0)
                 if show_buttons:
@@ -147,11 +147,11 @@ class PathView(Frame):
                 # prev_full_path is shotter than full_path
                 changed = True
 
-                bt.config(text = name)
+                bt.config(text = name or "   ")
                 if show_buttons:
                     bt.grid(row = 0, column = i, sticky = "NWS")
             elif prev_name != name:
-                bt.config(text = name)
+                bt.config(text = name or "   ")
                 update_path = True
 
         self._columns = i + 1
@@ -206,7 +206,7 @@ class PathView(Frame):
 
         lb = self._label
 
-        lb.config(text = path[-1])
+        lb.config(text = path[-1] or "   ")
 
         self.event_generate("<<PathChanged>>")
 
