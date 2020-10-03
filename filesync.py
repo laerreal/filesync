@@ -904,7 +904,11 @@ FCSBS = 4 << 10 # 4 KiB
 class LocalFS(FS):
     def coGetNodes(self, directory):
         # node paths
-        nps = listdir(directory.ep)
+        try:
+            nps = listdir(directory.ep)
+        except PermissionError:
+            # TODO: some permission error indicator
+            nps = []
 
         yield True
 
