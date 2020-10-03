@@ -72,7 +72,11 @@ def proc_build_root_tree(port, root_path):
 
         send(s, (0, (_path, _dir)))
 
-        nodes = listdir(_path)
+        try:
+            nodes = listdir(_path)
+        except PermissionError:
+            # TODO: some information to the user
+            nodes = []
 
         send(s, (1, nodes))
 
@@ -234,7 +238,18 @@ else:
 
     def recv(s):
         # note, `recv` does not catch `timeout` here
-        raw_len = s.recv(4)
+        raw_len = b""
+        while len(raw_len) < 4:
+            try:
+                chunk = s.recv(4 - len(raw_len))
+            except timeout:
+                if raw_len:
+                    raise RuntimeError("Unexpected connection shutdown")
+                raise
+            if not chunk:
+                raise RuntimeError("Unexpected connection shutdown")
+            raw_len += chunk
+
         rest = unpack("!I", raw_len)[0]
         data = b""
         while rest:
