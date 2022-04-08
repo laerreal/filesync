@@ -1,8 +1,9 @@
+from .model import *
+
 from os.path import (
     join,
     expanduser,
 )
-from .model import *
 
 
 class Config(object):

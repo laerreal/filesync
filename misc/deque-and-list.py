@@ -1,6 +1,13 @@
-from collections import deque
-from time import time
-from sys import stdout
+from collections import (
+    deque,
+)
+from sys import (
+    stdout,
+)
+from time import (
+    time,
+)
+
 
 if __name__ == "__main__":
     stdout.write("initializing...")

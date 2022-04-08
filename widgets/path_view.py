@@ -1,18 +1,18 @@
+from os.path import (
+    sep,
+)
 from six.moves.tkinter import (
-    Frame,
-    Entry,
     Button,
+    END,
+    Entry,
+    FLAT,
+    Frame,
     Label,
     StringVar,
     SUNKEN,
-    END,
-    FLAT,
 )
 from six.moves import (
     zip_longest as izip_longest,
-)
-from os.path import (
-    sep
 )
 
 

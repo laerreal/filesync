@@ -6,7 +6,6 @@ __all__ = [
     "iter_modules_recursive",
 ]
 
-
 from os import (
     listdir,
 )

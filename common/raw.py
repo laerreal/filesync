@@ -4,13 +4,17 @@ __all__ = [
     "int2bytes"
 ]
 
-from sys import version_info
+from sys import (
+    version_info,
+)
+
 
 if version_info[0] == 2:
     # byte is a one character string in Py2
     byte2int = ord
 else:
     byte2int = int
+
 
 def bytes2int(_bytes):
     result = 0
@@ -19,6 +23,7 @@ def bytes2int(_bytes):
         result = result * 256 + byte2int(b)
 
     return result
+
 
 def int2bytes(value, length):
     result = []

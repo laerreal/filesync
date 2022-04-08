@@ -3,7 +3,7 @@ __all__ = [
 ]
 
 from sys import (
-    _getframe
+    _getframe,
 )
 
 

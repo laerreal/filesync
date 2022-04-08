@@ -2,14 +2,23 @@ __all__ = [
     "CoView"
 ]
 
-from sys import version_info
+from sys import (
+    version_info,
+)
 
 if version_info[0] == 2:
-    from ttk import Treeview
+    from ttk import (
+        Treeview,
+    )
 else:
-    from tkinter.ttk import Treeview
+    from tkinter.ttk import (
+        Treeview,
+    )
 
-from collections import deque
+from collections import (
+    deque,
+)
+
 
 def coiid(co):
     return "co%u" % id(co)
@@ -33,6 +42,7 @@ def cells(d, co):
     aspect = p * 100 // g
 
     return ("%u/%u (%u%%)" % (p, g, aspect),)
+
 
 class CoView(Treeview):
     def __init__(self, coDisp = None, **kw):

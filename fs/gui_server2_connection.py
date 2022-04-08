@@ -1,11 +1,11 @@
-from .server2_connection import (
-    Server2Connection,
+from .session import (
+    Session,
 )
 from .server2 import (
     HandlerError,
 )
-from .session import (
-    Session
+from .server2_connection import (
+    Server2Connection,
 )
 
 

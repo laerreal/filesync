@@ -1,12 +1,12 @@
 from six.moves.tkinter import (
-    Toplevel,
     Button,
-    Label,
-    Frame,
-    RIGHT,
-    Y,
     Entry,
+    Frame,
+    Label,
+    RIGHT,
     StringVar,
+    Toplevel,
+    Y,
 )
 
 

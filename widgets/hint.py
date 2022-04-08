@@ -1,10 +1,11 @@
 __all__ = [
-    "Hint"
+    "Hint",
 ]
 
 from six.moves.tkinter import (
-    Toplevel
+    Toplevel,
 )
+
 
 HINT_HIDE_DELAY = 200 # ms
 

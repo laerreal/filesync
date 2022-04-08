@@ -1,8 +1,7 @@
 # https://github.com/ispras/qdt/commit/124258761359953e1b903cef604284107e4bbc9c
 from six.moves.tkinter import (
-    VERTICAL,
-    HORIZONTAL,
     Scrollbar,
+    HORIZONTAL, VERTICAL,
 )
 from six.moves.tkinter_ttk import (
     Sizegrip

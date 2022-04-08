@@ -3,11 +3,11 @@ __all__ = [
 ]
 
 from socket import (
-    socket,
     AF_INET,
+    socket,
+    SO_REUSEADDR,
     SOCK_STREAM,
     SOL_SOCKET,
-    SO_REUSEADDR
 )
 
 

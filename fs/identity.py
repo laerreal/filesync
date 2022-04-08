@@ -1,16 +1,18 @@
+from .config import (
+    CFG_DIRECTORY,
+)
+
+from getpass import (
+    getpass,
+)
 from os.path import (
-    join,
     exists,
+    join,
 )
 from Crypto.PublicKey import (
     RSA,
 )
-from .config import (
-    CFG_DIRECTORY
-)
-from getpass import (
-    getpass,
-)
+
 
 ID_PATH = CFG_DIRECTORY
 

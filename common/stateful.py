@@ -1,4 +1,7 @@
-__all__ = ["Stateful"]
+__all__ = [
+    "Stateful",
+]
+
 
 class Stateful():
     """Decorator for stateful object classes"""

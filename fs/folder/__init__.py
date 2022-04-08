@@ -1,13 +1,12 @@
+from os import (
+    listdir,
+)
 from os.path import (
+    exists,
     isdir,
     isfile,
     sep,
-    exists,
 )
-from os import (
-    listdir
-)
-
 
 
 class LocalFolder(object):

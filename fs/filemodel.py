@@ -1,8 +1,8 @@
-from os.path import (
-    join
-)
 from collections import (
-    defaultdict
+    defaultdict,
+)
+from os.path import (
+    join,
 )
 
 
