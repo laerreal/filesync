@@ -1,12 +1,13 @@
-from os.path import (
-    sep
-)
-from re import (
-    compile
-)
 from .folder import (
     NameNotExists,
     folder
+)
+
+from os.path import (
+    sep,
+)
+from re import (
+    compile,
 )
 from six import (
     binary_type,
