@@ -1,17 +1,3 @@
-from six.moves.tkinter import (
-    BooleanVar,
-    Tk,
-    Menu,
-)
-from six.moves.tkinter_ttk import (
-    Treeview,
-)
-from traceback import (
-    print_exc,
-)
-from threading import (
-    Lock,
-)
 from fs.config import (
     load_config,
 )
@@ -34,8 +20,23 @@ from widgets.path_view import (
 from widgets.dialog import (
     DialogContext,
 )
+
 from bisect import (
     bisect # used by auto gnerated `sorter`, see `_update_sorter`
+)
+from six.moves.tkinter import (
+    BooleanVar,
+    Menu,
+    Tk,
+)
+from six.moves.tkinter_ttk import (
+    Treeview,
+)
+from traceback import (
+    print_exc,
+)
+from threading import (
+    Lock,
 )
 
 

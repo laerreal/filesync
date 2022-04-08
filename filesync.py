@@ -8,12 +8,90 @@ To turn on replace with : \2
 To turn off replace with: # \2
 """
 
-# imports below
+from common.stateful import (
+    Stateful,
+)
+from common.raw import (
+    bytes2int,
+    int2bytes,
+)
+from widgets.coview import (
+    CoView,
+)
 
+
+# Any python
+from argparse import (
+    ArgumentParser,
+)
+from collections import (
+    deque,
+)
+from itertools import (
+    chain,
+    combinations,
+    count,
+)
+from hashlib import (
+    sha1,
+)
+from multiprocessing import (
+    Process,
+    Queue,
+)
+from os import (
+    listdir,
+    name as os_name,
+)
+from os.path import (
+    getsize,
+    getctime,
+    split,
+    isdir,
+    isfile,
+    join,
+)
+from select import (
+    select,
+)
+from socket import (
+    AF_INET,
+    ntohl,
+    htonl,
+    socket,
+    SOCK_STREAM,
+)
+from subprocess import (
+    PIPE,
+    Popen,
+)
+from sys import (
+    version_info,
+)
+from time import (
+    sleep,
+    time,
+)
+from traceback import (
+    format_exc,
+)
+from types import (
+    GeneratorType,
+)
+
+if os_name != "nt":
+    from os import (
+        O_NONBLOCK,
+    )
+
+    from fcntl import (
+        F_SETFL,
+        fcntl,
+    )
+
+# Python 2/3 sensitive imports
 TK_IMPORT = "Tk, TclError, Label, Frame"
 TTK_IMPORT = "Treeview, Notebook"
-
-from sys import version_info
 
 if version_info > (3,):
     # Python 3
@@ -25,7 +103,10 @@ if version_info > (3,):
     def decode_str(bytes):
         return bytes.decode("utf-8")
 
-    from pickle import loads, dumps
+    from pickle import (
+        loads,
+        dumps,
+    )
 
     exec("""
 def printnnl(arg):
@@ -34,7 +115,9 @@ def printnnl(arg):
         globals()
     )
 
-    from queue import Empty
+    from queue import (
+        Empty,
+    )
 else:
     # Python 2
     exec("from Tkinter import " + TK_IMPORT)
@@ -43,7 +126,10 @@ else:
     def decode_str(bytes):
         return str(bytes)
 
-    from cPickle import loads, dumps
+    from cPickle import (
+        loads,
+        dumps,
+    )
 
     exec("""
 def printnnl(arg):
@@ -52,65 +138,10 @@ def printnnl(arg):
         globals()
     )
 
-    from Queue import Empty
-
-# Any python
-from types import GeneratorType
-from subprocess import (
-    Popen,
-    PIPE
-)
-from os.path import (
-    getsize,
-    getctime,
-    split,
-    join,
-    isfile,
-    isdir
-)
-from os import (
-    name as os_name,
-    listdir
-)
-
-if os_name != "nt":
-    from os import O_NONBLOCK
-
-    from fcntl import (
-        F_SETFL,
-        fcntl
+    from Queue import (
+        Empty,
     )
 
-from itertools import (
-    chain,
-    combinations,
-    count
-)
-from argparse import ArgumentParser
-from hashlib import sha1
-from socket import (
-    ntohl,
-    htonl,
-    socket,
-    AF_INET,
-    SOCK_STREAM
-)
-from select import select
-from time import (
-    sleep,
-    time
-)
-from traceback import format_exc
-from multiprocessing import (
-    Process,
-    Queue
-)
-from common import (
-    Stateful,
-    bytes2int, int2bytes
-)
-from widgets import CoView
-from collections import deque
 
 # Actual program below
 # ====================

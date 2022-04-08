@@ -1,99 +1,102 @@
-from os.path import (
-    join,
-    sep
+from common.any_server import (
+    AnyServer,
+)
+from common.raw import (
+    bytes2int,
+)
+from fs.filemodel import (
+    directory,
+    file,
+    FileInfo_infos,
+)
+from fs.model import (
+    fs_path,
+)
+from fs.server import (
+    BUILD_ROOT_TREE_PROC,
+    COMPUTE_CHECKSUM_CMD,
+    CS_BLOCK_SZ as CP_BLOCK_SZ, # file copy block size
+    FINALIZE_IO_PROC,
+    GET_IO_OPS,
+    GET_IO_BYTES,
+    GETMTIME_CMD,
+    proc_io,
+    recv,
+    RUN_GLOBAL_CMD,
+    send,
+    UTIME_CMD,
+)
+from widgets.hint import (
+    Hint,
+)
+
+from argparse import (
+    ArgumentParser,
+)
+from collections import (
+    defaultdict,
+)
+from itertools import (
+    chain,
+)
+from multiprocessing import (
+    Process,
 )
 from os import (
     mkdir,
     remove,
     rmdir,
 )
-from argparse import (
-    ArgumentParser
+from os.path import (
+    join,
+    sep,
+)
+from platform import (
+    system,
+)
+from six import (
+    PY3,
 )
 from six.moves.cPickle import (
+    dump,
     load,
-    dump
 )
 from six.moves.tkinter import (
+    BOTH,
+    Button,
     DISABLED,
     END,
-    Text,
+    Frame,
     IntVar,
-    Menu,
     Label,
     LEFT,
+    Menu,
     RIGHT,
-    Button,
     Scrollbar,
-    VERTICAL,
-    HORIZONTAL,
-    BOTH,
-    Frame,
-    Tk
+    Text,
+    Tk,
+    VERTICAL, HORIZONTAL,
 )
 from six.moves.tkinter_ttk import (
     Separator,
-    Treeview
-)
-from collections import (
-    defaultdict
-)
-from subprocess import (
-    Popen
-)
-from traceback import (
-    print_exc
-)
-from platform import (
-    system
-)
-from itertools import (
-    chain
-)
-from types import (
-    GeneratorType
-)
-from six import (
-    PY3
-)
-from time import (
-    strftime,
-    localtime,
-    time
-)
-from multiprocessing import (
-    Process
-)
-from fs.server import (
-    UTIME_CMD,
-    GETMTIME_CMD,
-    COMPUTE_CHECKSUM_CMD,
-    CS_BLOCK_SZ as CP_BLOCK_SZ, # file copy block size
-    send,
-    recv,
-    proc_io,
-    FINALIZE_IO_PROC,
-    GET_IO_OPS,
-    GET_IO_BYTES,
-    BUILD_ROOT_TREE_PROC,
-    RUN_GLOBAL_CMD
+    Treeview,
 )
 from socket import (
     timeout,
 )
-from fs.filemodel import (
-    directory,
-    file,
-    FileInfo_infos
+from subprocess import (
+    Popen,
 )
-from widgets import (
-    Hint
+from time import (
+    localtime,
+    strftime,
+    time,
 )
-from common import (
-    AnyServer
+from traceback import (
+    print_exc,
 )
-from fs.model import (
-    fs_path,
+from types import (
+    GeneratorType,
 )
 
 
@@ -136,9 +139,6 @@ for io_op in [
         return io_op
     _globals[io_op] = gen_io_op(_globals[io_op])
 
-from common import (
-    bytes2int,
-)
 
 def format_checksum(val):
     return "".join("%0x" % bytes2int(val))
