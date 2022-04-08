@@ -25,10 +25,12 @@ class Hint(Toplevel):
         self.after(10, self._update_position)
 
     def _update_position(self):
-        self.geometry("%dx%d+%d+%d" % (
-            self.winfo_width(), self.winfo_height(),
-            self.x, self.y
-        ))
+        w = self.winfo_width()
+        h = self.winfo_height()
+        if w < 2 or h < 2:
+            self.after(10, self._update_position)
+            return
+        self.geometry("%dx%d+%d+%d" % (w, h, self.x, self.y))
 
     def _on_leave(self, _):
         self._hide_cancel()
