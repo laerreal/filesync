@@ -4,9 +4,6 @@ from os.path import (
 from re import (
     compile
 )
-from six import (
-    text_type
-)
 from .folder import (
     NameNotExists,
     folder
