@@ -136,9 +136,12 @@ for io_op in [
         return io_op
     _globals[io_op] = gen_io_op(_globals[io_op])
 
+from common import (
+    bytes2int,
+)
 
 def format_checksum(val):
-    return "".join("%0x" % ord(c) for c in val)
+    return "".join("%0x" % bytes2int(val))
 
 
 def format_mtime(val):
